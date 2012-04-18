@@ -48,8 +48,6 @@
 #define REG_ARG3	REG_R10
 #define REG_ARG4	REG_R8
 #define REG_ARG5	REG_R9
-#else
-#error Unsupported platform
 #endif
 
 #ifndef PR_SET_NO_NEW_PRIVS
