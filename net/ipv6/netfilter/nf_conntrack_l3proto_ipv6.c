@@ -28,6 +28,7 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/ipv6/nf_conntrack_ipv6.h>
+#include <net/netfilter/nf_nat_helper.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 #include <net/netfilter/nf_log.h>
 
@@ -142,6 +143,36 @@ static unsigned int ipv6_confirm(unsigned int hooknum,
 				 const struct net_device *out,
 				 int (*okfn)(struct sk_buff *))
 {
+	struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
+	unsigned char pnum = ipv6_hdr(skb)->nexthdr;
+	int protoff;
+	__be16 frag_off;
+
+	ct = nf_ct_get(skb, &ctinfo);
+	if (!ct || ctinfo == IP_CT_RELATED_REPLY)
+		goto out;
+
+	protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &pnum,
+				   &frag_off);
+	if (protoff < 0 || (frag_off & htons(~0x7)) != 0) {
+		pr_debug("proto header not found\n");
+		goto out;
+	}
+
+	/* adjust seqs for loopback traffic only in outgoing direction */
+	if (test_bit(IPS_SEQ_ADJUST_BIT, &ct->status) &&
+	    !nf_is_loopback_packet(skb)) {
+		typeof(nf_nat_seq_adjust_hook) seq_adjust;
+
+		seq_adjust = rcu_dereference(nf_nat_seq_adjust_hook);
+		if (!seq_adjust ||
+		    !seq_adjust(skb, ct, ctinfo, protoff)) {
+			NF_CT_STAT_INC_ATOMIC(nf_ct_net(ct), drop);
+			return NF_DROP;
+		}
+	}
+out:
 	/* We've seen it coming out the other side: confirm it */
 	return nf_conntrack_confirm(skb);
 }
