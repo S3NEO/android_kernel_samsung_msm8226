@@ -1082,6 +1082,10 @@ static int msm_isp_start_axi_stream(struct vfe_device *vfe_dev,
 		return -EINVAL;
 	}
 
+	if (stream_cfg_cmd->num_streams > MAX_NUM_STREAM) {
+		return -EINVAL;
+	}
+
 	for (i = 0; i < stream_cfg_cmd->num_streams; i++) {
 		if (HANDLE_TO_IDX(stream_cfg_cmd->stream_handle[i]) >= MAX_NUM_STREAM) {
 			return -EINVAL;
@@ -1144,6 +1148,10 @@ static int msm_isp_stop_axi_stream(struct vfe_device *vfe_dev,
 	int i, rc = 0;
 	struct msm_vfe_axi_stream *stream_info;
 	struct msm_vfe_axi_shared_data *axi_data = &vfe_dev->axi_data;
+
+	if (stream_cfg_cmd->num_streams > MAX_NUM_STREAM) {
+		return -EINVAL;
+	}
 
 	if (stream_cfg_cmd->num_streams > MAX_NUM_STREAM) {
 		return -EINVAL;
