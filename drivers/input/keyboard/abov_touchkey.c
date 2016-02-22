@@ -54,7 +54,10 @@
 #define ABOV_RAWDATA		0x0E
 #define ABOV_VENDORID		0x12
 #define ABOV_GLOVE			0x13
+
+#ifdef CONFIG_KEYBOARD_ABOV_DUAL_DETECT
 #define ABOV_DUAL_DETECT	0x16
+#endif
 
 /* command */
 #define CMD_LED_ON			0x10
@@ -65,7 +68,11 @@
 #define CMD_STOP_MODE		0x80
 #define CMD_GLOVE_ON		0x20
 #define CMD_GLOVE_OFF		0x10
+
+#ifdef CONFIG_KEYBOARD_ABOV_DUAL_DETECT
 #define CMD_DUAL_DETECT		0x10
+#endif
+
 #define CMD_SINGLE_DETECT	0x20
 
 #define ABOV_BOOT_DELAY		45
@@ -80,10 +87,16 @@ struct device *sec_touchkey;
 #define FW_CHECKSUM_L 0xCE
 #define TK_FW_PATH_BIN "abov/abov_tk.fw"
 #define TK_FW_PATH_SDCARD "/sdcard/abov_fw.bin"
+
+#ifdef CONFIG_KEYBOARD_ABOV_DUAL_DETECT
 #define ABOV_DUAL_DETECTION_CMD_FW_VER	0x14
-#else
+#endif
+
 #define FW_VERSION 0x06
+
+#ifdef CONFIG_KEYBOARD_ABOV_DUAL_DETECT
 #define ABOV_DUAL_DETECTION_CMD_FW_VER	0xFF
+#endif
 #define FW_CHECKSUM_H 0x94
 #define FW_CHECKSUM_L 0x86
 #define FW_CHECKSUM_H_REV4 0xE4
@@ -153,7 +166,10 @@ static void abov_tk_late_resume(struct early_suspend *h);
 #ifdef CONFIG_INPUT_ENABLED
 static int abov_tk_input_open(struct input_dev *dev);
 static void abov_tk_input_close(struct input_dev *dev);
+
+#ifdef CONFIG_KEYBOARD_ABOV_DUAL_DETECT
 static void abov_tk_dual_detection_mode(struct abov_tk_info *info, int mode);
+#endif
 #endif
 
 static int abov_glove_mode_enable(struct i2c_client *client, u8 cmd)
@@ -333,7 +349,9 @@ static void abov_tk_reset(struct abov_tk_info *info)
 
 	abov_tk_reset_for_bootmode(info);
 	msleep(ABOV_RESET_DELAY);
+#ifdef CONFIG_KEYBOARD_ABOV_DUAL_DETECT
 	abov_tk_dual_detection_mode(info, 1);
+#endif
 	if (info->glovemode)
 		abov_glove_mode_enable(client, CMD_GLOVE_ON);
 
@@ -1100,7 +1118,9 @@ static ssize_t touchkey_fw_update(struct device *dev,
 	disable_irq(info->irq);
 	info->enabled = false;
 	ret = abov_flash_fw(info, false, cmd);
+#ifdef CONFIG_KEYBOARD_ABOV_DUAL_DETECT
 	abov_tk_dual_detection_mode(info, 1);
+#endif
 	if (info->glovemode)
 		abov_glove_mode_enable(client, CMD_GLOVE_ON);
 	info->enabled = true;
@@ -1194,6 +1214,8 @@ static ssize_t abov_glove_mode_show(struct device *dev,
 
 	return sprintf(buf, "%d\n", info->glovemode);
 }
+
+#ifdef CONFIG_KEYBOARD_ABOV_DUAL_DETECT
 static void abov_tk_dual_detection_mode(struct abov_tk_info *info, int mode)
 {
 	u8 cmd;
@@ -1240,6 +1262,7 @@ static ssize_t abov_set_dual_detection_mode(struct device *dev,
 
 	return count;
 }
+#endif
 
 static DEVICE_ATTR(touchkey_threshold, S_IRUGO, touchkey_threshold_show, NULL);
 static DEVICE_ATTR(brightness, S_IRUGO | S_IWUSR | S_IWGRP, NULL,
@@ -1256,8 +1279,10 @@ static DEVICE_ATTR(touchkey_firm_update_status, S_IRUGO | S_IWUSR | S_IWGRP,
 			touchkey_fw_update_status, NULL);
 static DEVICE_ATTR(glove_mode, S_IRUGO | S_IWUSR | S_IWGRP,
 			abov_glove_mode_show, abov_glove_mode);
+#ifdef CONFIG_KEYBOARD_ABOV_DUAL_DETECT
 static DEVICE_ATTR(detection_mode, S_IRUGO | S_IWUSR | S_IWGRP,
 			NULL, abov_set_dual_detection_mode);
+#endif
 static struct attribute *sec_touchkey_attributes[] = {
 	&dev_attr_touchkey_threshold.attr,
 	&dev_attr_brightness.attr,
@@ -1270,7 +1295,9 @@ static struct attribute *sec_touchkey_attributes[] = {
 	&dev_attr_touchkey_firm_update.attr,
 	&dev_attr_touchkey_firm_update_status.attr,
 	&dev_attr_glove_mode.attr,
+#ifdef CONFIG_KEYBOARD_ABOV_DUAL_DETECT
 	&dev_attr_detection_mode.attr,
+#endif
 	NULL,
 };
 
@@ -1559,7 +1586,9 @@ static int __devinit abov_tk_probe(struct i2c_client *client,
 			"failed to firmware check (%d)\n", ret);
 		goto err_reg_input_dev;
 	}
+#ifdef CONFIG_KEYBOARD_ABOV_DUAL_DETECT
 	abov_tk_dual_detection_mode(info, 1);
+#endif
 	snprintf(info->phys, sizeof(info->phys),
 		 "%s/input0", dev_name(&client->dev));
 	input_dev->name = "sec_touchkey";
@@ -1742,7 +1771,9 @@ static int abov_tk_resume(struct device *dev)
 		/* touchkey on by i2c */
 		get_tk_fw_version(info, true);
 #endif
+#ifdef CONFIG_KEYBOARD_ABOV_DUAL_DETECT
 	abov_tk_dual_detection_mode(info, 1);
+#endif
 	info->enabled = true;
 #if defined(CONFIG_SEC_ATLANTIC_PROJECT)
 	dev_notice(&info->client->dev, "%s: led_flag=%d\n", __func__,
