@@ -631,6 +631,13 @@ config KEYBOARD_W90P910
 	  To compile this driver as a module, choose M here: the
 	  module will be called w90p910_keypad.
 
+config KEYBOARD_ABOV_DUAL_DETECT
+	bool "Abov FT16XX Touchkey Dual Detect Feature"
+	depends on KEYBOARD_ABOV_TOUCH
+	default n
+	help
+          Say Y here only for stock kernel and disable permanently
+          on custom rom.
 endif
 
 config SENSORS_HALL_DEBOUNCE
