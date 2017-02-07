@@ -611,6 +611,12 @@ static int32_t msm_actuator_piezo_move_focus(
 	if (num_steps == 0)
 		return rc;
 
+	if (dest_step_position > a_ctrl->total_steps) {
+		pr_err("Step pos greater than total steps = %d\n",
+			dest_step_position);
+		return -EFAULT;
+	}
+
 	if (a_ctrl->i2c_reg_tbl == NULL) {
 		pr_err("failed. i2c reg tabl is NULL");
 		return -EFAULT;
