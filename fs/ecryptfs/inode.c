@@ -44,10 +44,6 @@
 #include "../sdcardfs/sdcardfs.h"
 #endif
 
-#ifdef CONFIG_DLP
-#include "ecryptfs_dlp.h"
-#endif
-
 /* Do not directly use this function. Use ECRYPTFS_OVERRIDE_CRED() instead. */
 const struct cred * ecryptfs_override_fsids(uid_t fsuid, gid_t fsgid)
 {
@@ -378,10 +374,6 @@ int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry,
 		&ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
 	int rc = 0;
 
-#ifdef CONFIG_DLP
-	sdp_fs_command_t *cmd = NULL;
-#endif
-
 	if (S_ISDIR(ecryptfs_inode->i_mode)) {
 		ecryptfs_printk(KERN_DEBUG, "This is a directory\n");
 		crypt_stat->flags &= ~(ECRYPTFS_ENCRYPTED);
@@ -402,39 +394,6 @@ int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry,
 			ecryptfs_dentry->d_name.name, rc);
 		goto out;
 	}
-#ifdef CONFIG_DLP
-	if(crypt_stat->mount_crypt_stat->flags & ECRYPTFS_MOUNT_DLP_ENABLED) {
-#if DLP_DEBUG
-		printk(KERN_ERR "DLP %s: file name: [%s], userid: [%d]\n",
-				__func__, ecryptfs_dentry->d_iname, crypt_stat->mount_crypt_stat->userid);
-#endif
-		if(!rc && (in_egroup_p(AID_KNOX_DLP) || in_egroup_p(AID_KNOX_DLP_RESTRICTED))) {
-			/* TODO: Can DLP files be created while in locked state? */
-			struct timespec ts;
-			crypt_stat->flags |= ECRYPTFS_DLP_ENABLED;
-			getnstimeofday(&ts);
-			crypt_stat->expiry.expiry_time.tv_sec = (int64_t)ts.tv_sec + 20;
-			crypt_stat->expiry.expiry_time.tv_nsec = (int64_t)ts.tv_nsec;
-#if DLP_DEBUG
-			printk(KERN_ERR "DLP %s: current->pid : %d\n", __func__, current->tgid);
-			printk(KERN_ERR "DLP %s: crypt_stat->mount_crypt_stat->userid : %d\n", __func__, crypt_stat->mount_crypt_stat->userid);
-			printk(KERN_ERR "DLP %s: crypt_stat->mount_crypt_stat->partition_id : %d\n", __func__, crypt_stat->mount_crypt_stat->partition_id);
-#endif
-			if(in_egroup_p(AID_KNOX_DLP)) {
-				cmd = sdp_fs_command_alloc(FSOP_DLP_FILE_INIT,
-                current->tgid, crypt_stat->mount_crypt_stat->userid, crypt_stat->mount_crypt_stat->partition_id,
-                ecryptfs_inode->i_ino, GFP_KERNEL);
-			}
-			else if(in_egroup_p(AID_KNOX_DLP_RESTRICTED)) {
-				cmd = sdp_fs_command_alloc(FSOP_DLP_FILE_INIT_RESTRICTED,
-                current->tgid, crypt_stat->mount_crypt_stat->userid, crypt_stat->mount_crypt_stat->partition_id,
-                ecryptfs_inode->i_ino, GFP_KERNEL);
-			}
-		} else {
-			printk(KERN_ERR "DLP %s: not in group\n", __func__);
-		}
-	}
-#endif
 #ifdef CONFIG_WTL_ENCRYPTION_FILTER
 	mutex_lock(&crypt_stat->cs_mutex);
 	if (crypt_stat->flags & ECRYPTFS_ENCRYPTED) {
@@ -474,12 +433,6 @@ int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry,
 	ecryptfs_put_lower_file(ecryptfs_inode);
 #endif
 out:
-#ifdef CONFIG_DLP
-	if(cmd) {
-		sdp_fs_request(cmd, NULL);
-		sdp_fs_command_free(cmd);
-	}
-#endif
 	return rc;
 }
 
@@ -1007,10 +960,6 @@ ecryptfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct dentry *lower_new_dir_dentry;
 	struct dentry *trap = NULL;
 	struct inode *target_inode;
-#ifdef CONFIG_DLP
-	sdp_fs_command_t *cmd1 = NULL;
-	unsigned long old_inode = old_dentry->d_inode->i_ino;
-#endif
 #ifdef CONFIG_SDP
 	sdp_fs_command_t *cmd = NULL;
 	int rename_event = 0x00;
@@ -1158,23 +1107,6 @@ out_lock:
 	    sdp_fs_request(cmd, ecryptfs_fs_request_callback);
 	    sdp_fs_command_free(cmd);
 	}
-#endif
-
-#ifdef CONFIG_DLP
-	//create new init command and send--Handle transient case MS-Apps
-	if(crypt_stat->flags & ECRYPTFS_DLP_ENABLED) {
-		if(!rc && (in_egroup_p(AID_KNOX_DLP) || in_egroup_p(AID_KNOX_DLP_RESTRICTED))){
-            cmd1 = sdp_fs_command_alloc(FSOP_DLP_FILE_RENAME,
-						current->tgid, mount_crypt_stat->userid, mount_crypt_stat->partition_id,
-						old_inode, GFP_KERNEL);
-            //send cmd
-			if(cmd1) {
-                sdp_fs_request(cmd1, NULL);
-                sdp_fs_command_free(cmd1);
-			}
-		}
-	}
-    //end- Handle transient case MS-Apps
 #endif
 	return rc;
 }
@@ -1602,19 +1534,6 @@ ecryptfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		goto out;
 	}
 
-#ifdef CONFIG_DLP
-	if (!strcmp(name, KNOX_DLP_XATTR_NAME)) {
-#if DLP_DEBUG
-		printk(KERN_ERR "DLP %s: setting knox_dlp by [%d]\n", __func__, current_uid());
-#endif
-		if (!is_root() && !is_system_server()) {
-			printk(KERN_ERR "DLP %s: setting knox_dlp not allowed by [%d]\n", __func__, current_uid());
-			return -EPERM;
-		}
-		/* TODO: Need to set DLP flag here too? */
-	}
-#endif
-
 	rc = vfs_setxattr(lower_dentry, name, value, size, flags);
 	if (!rc && dentry->d_inode)
 		fsstack_copy_attr_all(dentry->d_inode, lower_dentry->d_inode);
@@ -1646,61 +1565,8 @@ static ssize_t
 ecryptfs_getxattr(struct dentry *dentry, const char *name, void *value,
 		  size_t size)
 {
-#ifdef CONFIG_DLP
-	int rc = 0;
-	struct ecryptfs_crypt_stat *crypt_stat = NULL;
-
-	rc = ecryptfs_getxattr_lower(ecryptfs_dentry_to_lower(dentry), name,
-			value, size);
-
-	if (rc == 8 && !strcmp(name, KNOX_DLP_XATTR_NAME)) {
-		uint32_t msw, lsw;
-		struct knox_dlp_data *dlp_data = value;
-		if (size < sizeof(struct knox_dlp_data)) {
-			return -ERANGE;
-		}
-		msw = (dlp_data->expiry_time.tv_sec >> 32) & 0xFFFFFFFF;
-		lsw = dlp_data->expiry_time.tv_sec & 0xFFFFFFFF;
-		dlp_data->expiry_time.tv_sec = (uint64_t)lsw;
-		dlp_data->expiry_time.tv_nsec = (uint64_t)msw;
-		rc = sizeof(struct knox_dlp_data);
-#if DLP_DEBUG
-		printk(KERN_ERR "DLP %s: conversion done, tv_sec=[%ld]\n",
-				__func__, (long)dlp_data->expiry_time.tv_sec);
-#endif
-	}
-
-	if ((rc == -ENODATA) && (!strcmp(name, KNOX_DLP_XATTR_NAME))) {
-		if (dentry->d_inode) {
-			crypt_stat = &ecryptfs_inode_to_private(dentry->d_inode)->crypt_stat;
-		}
-		if (crypt_stat && (crypt_stat->flags & ECRYPTFS_DLP_ENABLED)) {
-			if (size < sizeof(struct knox_dlp_data)) {
-				return -ERANGE;
-			}
-			if (crypt_stat->expiry.expiry_time.tv_sec <= 0) {
-				struct timespec ts;
-				getnstimeofday(&ts);
-				crypt_stat->expiry.expiry_time.tv_sec = (int64_t)ts.tv_sec + 20;
-				crypt_stat->expiry.expiry_time.tv_nsec = (int64_t)ts.tv_nsec;
-#if DLP_DEBUG
-				printk(KERN_ERR "DLP %s: use temp expiry\n", __func__);
-#endif
-			}
-			memcpy(value, &crypt_stat->expiry, sizeof(struct knox_dlp_data));
-#if DLP_DEBUG
-			printk(KERN_ERR "DLP %s: returning expiry from cryp_stat [%ld]\n",
-					__func__, (long)crypt_stat->expiry.expiry_time.tv_sec);
-#endif
-			rc = sizeof(struct knox_dlp_data);
-		}
-	}
-	return rc;
-
-#else
 	return ecryptfs_getxattr_lower(ecryptfs_dentry_to_lower(dentry), name,
 				       value, size);
-#endif
 }
 
 static ssize_t
@@ -1731,18 +1597,6 @@ static int ecryptfs_removexattr(struct dentry *dentry, const char *name)
 		rc = -EOPNOTSUPP;
 		goto out;
 	}
-
-#ifdef CONFIG_DLP
-	if (!strcmp(name, KNOX_DLP_XATTR_NAME)) {
-#if DLP_DEBUG
-		printk(KERN_ERR "DLP %s: removing knox_dlp by [%d]\n", __func__, current_uid());
-#endif
-		if (!is_root() && !is_system_server()) {
-			printk(KERN_ERR "DLP %s: removing knox_dlp not allowed by [%d]\n", __func__, current_uid());
-			return -EPERM;
-		}
-	}
-#endif
 
 	mutex_lock(&lower_dentry->d_inode->i_mutex);
 	rc = lower_dentry->d_inode->i_op->removexattr(lower_dentry, name);
