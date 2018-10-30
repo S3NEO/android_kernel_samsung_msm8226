@@ -600,9 +600,8 @@ int main(int ac, char **av)
 			}
 		} else {
 			printf(_("***\n"
-				"***  You must specify VARIANT_DEFCONFIG !\n"
+				"***  VARIANT_DEFCONFIG not specified !\n"
 				"***\n"));
-		exit(1);
 		}
 		name = getenv("KCONFIG_DEBUG");
 		printf("KCONFIG_DEBUG(%s)\n", name);
