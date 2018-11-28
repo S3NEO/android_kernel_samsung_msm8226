@@ -32,11 +32,11 @@
 #include <mach/msm_iomap.h>
 #include <mach/restart.h>
 #include <mach/socinfo.h>
-#ifdef CONFIG_SEC_DEBUG
+
 #include <mach/sec_debug.h>
 #include <linux/notifier.h>
 #include <linux/ftrace.h>
-#endif
+
 #include <mach/irqs.h>
 #include <mach/scm.h>
 #include "msm_watchdog.h"
@@ -66,9 +66,9 @@
 #endif
 
 static int restart_mode;
-#ifndef CONFIG_SEC_DEBUG
+
 void *restart_reason;
-#endif
+
 
 #ifdef CONFIG_USER_RESET_DEBUG
 #define RESET_CAUSE_LPM_REBOOT 0x95
@@ -334,11 +334,11 @@ static void msm_restart_prepare(const char *cmd)
 	printk(KERN_NOTICE "Going down for restart now\n");
 	warm_reboot_set = 0;
 
-#ifdef CONFIG_SEC_DEBUG
+
 		if (!restart_reason)
 			restart_reason = ioremap_nocache((unsigned long)(MSM_IMEM_BASE \
 							+ RESTART_REASON_ADDR), SZ_4K);
-#endif
+
 	if (cmd != NULL) {
 		printk(KERN_NOTICE " Reboot cmd=%s\n",cmd);
 		if (!strncmp(cmd, "bootloader", 10)) {
