@@ -18,6 +18,19 @@
 
 /* NOTE: this header file should ONLY be included by subdev drivers */
 
+#ifndef EEPROM_CAM_FW
+  #if defined(CONFIG_MACH_ATLANTIC3GEUR_OPEN) ||\
+      defined(CONFIG_MACH_ATLANTICLTE_ATT) ||\
+	defined(CONFIG_SEC_HESTIA_PROJECT) ||\
+	defined(CONFIG_MACH_MEGA2LTE_KTT) ||\
+	defined(CONFIG_MACH_VASTALTE_CHN_CMCC_DUOS)
+
+         #define EEPROM_CAM_FW
+         #define EEPROM_FW_OFFSET 48
+         #define EEPROM_FW_SIZE 11
+  #endif
+#endif
+
 struct msm_sd_close_ioctl {
 	unsigned int session;
 	unsigned int stream;

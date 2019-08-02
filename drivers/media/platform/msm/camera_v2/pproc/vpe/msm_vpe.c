@@ -25,8 +25,8 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-subdev.h>
 #include <media/media-entity.h>
-#include <media/msmb_generic_buf_mgr.h>
 #include <media/msmb_pproc.h>
+#include <media/msmb_generic_buf_mgr.h>
 #include "msm_vpe.h"
 #include "msm_camera_io_util.h"
 
@@ -52,7 +52,7 @@ static void vpe_mem_dump(const char * const name, const void * const addr,
 	int i;
 	u32 *p = (u32 *) addr;
 	u32 data;
-	VPE_DBG("%s: (%s) %p %d\n", __func__, name, addr, size);
+	VPE_DBG("%s: (%s) %pK %d\n", __func__, name, addr, size);
 	line_str[0] = '\0';
 	p_str = line_str;
 	for (i = 0; i < size/4; i++) {
@@ -595,7 +595,7 @@ static int vpe_open_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		goto err_mutex_unlock;
 	}
 
-	VPE_DBG("open %d %p\n", i, &fh->vfh);
+	VPE_DBG("open %d %pK\n", i, &fh->vfh);
 	vpe_dev->vpe_open_cnt++;
 	if (vpe_dev->vpe_open_cnt == 1) {
 		rc = vpe_init_hardware(vpe_dev);
@@ -651,7 +651,7 @@ static int vpe_close_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		return -ENODEV;
 	}
 
-	VPE_DBG("close %d %p\n", i, &fh->vfh);
+	VPE_DBG("close %d %pK\n", i, &fh->vfh);
 	vpe_dev->vpe_open_cnt--;
 	if (vpe_dev->vpe_open_cnt == 0) {
 		vpe_deinit_mem(vpe_dev);
@@ -691,47 +691,43 @@ static int msm_vpe_notify_frame_done(struct vpe_device *vpe_dev)
 
 	if (queue->len > 0) {
 		frame_qcmd = msm_dequeue(queue, list_frame);
-		if(frame_qcmd) {
-			processed_frame = frame_qcmd->command;
-			do_gettimeofday(&(processed_frame->out_time));
-			kfree(frame_qcmd);
-			event_qcmd = kzalloc(sizeof(struct msm_queue_cmd), GFP_ATOMIC);
-			if (!event_qcmd) {
-				pr_err("%s: Insufficient memory\n", __func__);
-				return -ENOMEM;
-			}
-			atomic_set(&event_qcmd->on_heap, 1);
-			event_qcmd->command = processed_frame;
-			VPE_DBG("fid %d\n", processed_frame->frame_id);
-			msm_enqueue(&vpe_dev->eventData_q, &event_qcmd->list_eventdata);
+		processed_frame = frame_qcmd->command;
+		do_gettimeofday(&(processed_frame->out_time));
+		kfree(frame_qcmd);
+		event_qcmd = kzalloc(sizeof(struct msm_queue_cmd), GFP_ATOMIC);
+		if (!event_qcmd) {
+			pr_err("%s: Insufficient memory\n", __func__);
+			return -ENOMEM;
+		}
+		atomic_set(&event_qcmd->on_heap, 1);
+		event_qcmd->command = processed_frame;
+		VPE_DBG("fid %d\n", processed_frame->frame_id);
+		msm_enqueue(&vpe_dev->eventData_q, &event_qcmd->list_eventdata);
 
-			if (!processed_frame->output_buffer_info.processed_divert) {
-				memset(&buff_mgr_info, 0 ,
-					sizeof(buff_mgr_info));
-				buff_mgr_info.session_id =
-					((processed_frame->identity >> 16) & 0xFFFF);
-				buff_mgr_info.stream_id =
-					(processed_frame->identity & 0xFFFF);
-				buff_mgr_info.frame_id = processed_frame->frame_id;
-				buff_mgr_info.timestamp = processed_frame->timestamp;
-				buff_mgr_info.index =
-					processed_frame->output_buffer_info.index;
-				rc = msm_vpe_buffer_ops(vpe_dev,
+		if (!processed_frame->output_buffer_info.processed_divert) {
+			memset(&buff_mgr_info, 0 ,
+				sizeof(buff_mgr_info));
+			buff_mgr_info.session_id =
+				((processed_frame->identity >> 16) & 0xFFFF);
+			buff_mgr_info.stream_id =
+				(processed_frame->identity & 0xFFFF);
+			buff_mgr_info.frame_id = processed_frame->frame_id;
+			buff_mgr_info.timestamp = processed_frame->timestamp;
+			buff_mgr_info.index =
+				processed_frame->output_buffer_info.index;
+			rc = msm_vpe_buffer_ops(vpe_dev,
 						VIDIOC_MSM_BUF_MNGR_BUF_DONE,
 						&buff_mgr_info);
-				if (rc < 0) {
-					pr_err("%s: error doing VIDIOC_MSM_BUF_MNGR_BUF_DONE\n",
-						__func__);
-					rc = -EINVAL;
-				}
+			if (rc < 0) {
+				pr_err("%s: error doing VIDIOC_MSM_BUF_MNGR_BUF_DONE\n",
+					__func__);
+				rc = -EINVAL;
 			}
-
-			v4l2_evt.id = processed_frame->inst_id;
-			v4l2_evt.type = V4L2_EVENT_VPE_FRAME_DONE;
-			v4l2_event_queue(vpe_dev->msm_sd.sd.devnode, &v4l2_evt);
 		}
-		else
-			rc = -EFAULT;
+
+		v4l2_evt.id = processed_frame->inst_id;
+		v4l2_evt.type = V4L2_EVENT_VPE_FRAME_DONE;
+		v4l2_event_queue(vpe_dev->msm_sd.sd.devnode, &v4l2_evt);
 	}
 	return rc;
 }
@@ -1286,15 +1282,6 @@ static long msm_vpe_subdev_ioctl(struct v4l2_subdev *sd,
 			return -EINVAL;
 		}
 
-		if ((u_stream_buff_info->num_buffs == 0) ||
-			(u_stream_buff_info->num_buffs >
-				MSM_CAMERA_MAX_STREAM_BUF)) {
-			pr_err("%s:%d: Invalid number of buffers\n", __func__,
-				__LINE__);
-			kfree(u_stream_buff_info);
-			mutex_unlock(&vpe_dev->mutex);
-			return -EINVAL;
-		}
 		k_stream_buff_info.num_buffs = u_stream_buff_info->num_buffs;
 		k_stream_buff_info.identity = u_stream_buff_info->identity;
 		k_stream_buff_info.buffer_info =
@@ -1336,11 +1323,6 @@ static long msm_vpe_subdev_ioctl(struct v4l2_subdev *sd,
 		struct msm_vpe_buff_queue_info_t *buff_queue_info;
 
 		VPE_DBG("VIDIOC_MSM_VPE_DEQUEUE_STREAM_BUFF_INFO\n");
-		if (ioctl_ptr->len != sizeof(uint32_t)) {
-			pr_err("%s:%d Invalid len\n", __func__, __LINE__);
-			mutex_unlock(&vpe_dev->mutex);
-			return -EINVAL;
-		}
 
 		rc = (copy_from_user(&identity,
 				(void __user *)ioctl_ptr->ioctl_ptr,
@@ -1372,16 +1354,12 @@ static long msm_vpe_subdev_ioctl(struct v4l2_subdev *sd,
 		struct msm_vpe_frame_info_t *process_frame;
 		VPE_DBG("VIDIOC_MSM_VPE_GET_EVENTPAYLOAD\n");
 		event_qcmd = msm_dequeue(queue, list_eventdata);
-		if (NULL == event_qcmd)
-			break;
 		process_frame = event_qcmd->command;
 		VPE_DBG("fid %d\n", process_frame->frame_id);
 		if (copy_to_user((void __user *)ioctl_ptr->ioctl_ptr,
 				process_frame,
 				sizeof(struct msm_vpe_frame_info_t))) {
 					mutex_unlock(&vpe_dev->mutex);
-					kfree(process_frame);
-					kfree(event_qcmd);
 					return -EINVAL;
 		}
 
@@ -1442,7 +1420,6 @@ static long msm_vpe_subdev_do_ioctl(
 		struct vpe_device *vpe_dev = v4l2_get_subdevdata(sd);
 		struct msm_camera_v4l2_ioctl_t *ioctl_ptr = arg;
 		struct msm_vpe_frame_info_t inst_info;
-		memset(&inst_info, 0, sizeof(struct msm_vpe_frame_info_t));
 		for (i = 0; i < MAX_ACTIVE_VPE_INSTANCE; i++) {
 			if (vpe_dev->vpe_subscribe_list[i].vfh == vfh) {
 				inst_info.inst_id = i;
