@@ -497,6 +497,8 @@ static int snd_timer_stop1(struct snd_timer_instance *timeri, bool stop)
 	int result = 0;
 	unsigned long flags;
 
+			list_del_init(&timeri->ack_list);
+			list_del_init(&timeri->active_list);
 	timer = timeri->timer;
 	if (!timer)
 		return -EINVAL;
@@ -1236,6 +1238,7 @@ static void snd_timer_user_tinterrupt(struct snd_timer_instance *timeri,
 	}
 	if ((tu->filter & (1 << SNDRV_TIMER_EVENT_RESOLUTION)) &&
 	    tu->last_resolution != resolution) {
+		memset(&r1, 0, sizeof(r1));
 		r1.event = SNDRV_TIMER_EVENT_RESOLUTION;
 		r1.tstamp = tstamp;
 		r1.val = resolution;

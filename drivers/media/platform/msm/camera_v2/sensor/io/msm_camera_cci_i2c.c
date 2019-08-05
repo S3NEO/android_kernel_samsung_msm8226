@@ -201,6 +201,11 @@ int32_t msm_camera_cci_i2c_write_seq(struct msm_camera_i2c_client *client,
 		&& client->addr_type != MSM_CAMERA_I2C_WORD_ADDR)
 		|| num_byte == 0)
 		return rc;
+	if (num_byte > I2C_SEQ_REG_DATA_MAX) {
+		pr_err("%s: num_byte=%d clamped to max supported %d\n",
+			__func__, num_byte, I2C_SEQ_REG_DATA_MAX);
+		return rc;
+	}
 
 	S_I2C_DBG("%s reg addr = 0x%x num bytes: %d\n",
 		__func__, addr, num_byte);
@@ -374,6 +379,12 @@ int32_t msm_camera_cci_i2c_write_seq_table(
 	reg_setting = write_setting->reg_setting;
 	client_addr_type = client->addr_type;
 	client->addr_type = write_setting->addr_type;
+
+	if (reg_setting->reg_data_size > I2C_SEQ_REG_DATA_MAX) {
+		pr_err("%s: number of bytes %u exceeding the max supported %d\n",
+		__func__, reg_setting->reg_data_size, I2C_SEQ_REG_DATA_MAX);
+		return rc;
+	}
 
         if (reg_setting->reg_data_size > I2C_SEQ_REG_DATA_MAX) {
 		pr_err("%s: number of bytes %u exceeding the max supported %d\n",

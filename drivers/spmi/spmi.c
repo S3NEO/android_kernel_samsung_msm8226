@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -258,6 +258,12 @@ int spmi_add_device(struct spmi_device *spmidev)
 		return -EINVAL;
 	}
  
+	id = ida_simple_get(&spmi_devid_ida, 0, 0, GFP_KERNEL);
+	if (id < 0) {
+		pr_err("No id available status = %d\n", id);
+		return id;
+	}
+
 	id = ida_simple_get(&spmi_devid_ida, 0, 0, GFP_KERNEL);
 	if (id < 0) {
 		pr_err("No id available status = %d\n", id);
