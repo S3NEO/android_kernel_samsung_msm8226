@@ -66,7 +66,7 @@ s64 get_time_ns(void)
 {
 	struct timespec ts;
 	s64 timestamp;
-	ts = ktime_to_timespec(alarm_get_elapsed_realtime());
+	ts = ktime_to_timespec(ktime_get_boottime());
 	timestamp = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
 	if (timestamp < 0)
 		pr_err("[INV] %s invalid time = %lld\n", __func__, timestamp);
