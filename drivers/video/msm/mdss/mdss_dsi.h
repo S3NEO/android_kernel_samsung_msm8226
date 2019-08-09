@@ -381,6 +381,11 @@ struct mdss_dsi_ctrl_pdata {
 	struct dsi_panel_cmds disp_on_cmd;
 #endif
 
+#if defined (CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL)    
+	int dsi_on_state;
+	int dsi_off_state;    
+#endif
+    
 	struct dsi_panel_cmds video2cmd;
 	struct dsi_panel_cmds cmd2video;
 
