@@ -90,10 +90,10 @@ struct debug_mdp *debug_mdp;
 #ifdef CONFIG_SEC_DEBUG_SCHED_LOG
 extern struct sec_debug_log *secdbg_log;
 extern struct sec_debug_subsys_data_krait *secdbg_krait;
-extern struct _dlogdebug __start___dlog[];
-extern struct _dlogdebug __stop___dlog[];
 extern struct mdss_data_type *mdss_res;
 #endif
+extern struct _dlogdebug __start___dlog[];
+extern struct _dlogdebug __stop___dlog[];
 static spinlock_t xlock;
 extern struct msm_mdp_interface mdp5;
 static int sec_debug_level = 1;
