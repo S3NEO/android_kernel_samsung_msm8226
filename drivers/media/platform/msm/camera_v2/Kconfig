@@ -114,7 +114,13 @@ config S5K6A3YX
 	---help---
 		Samsung 2 MP Bayer Sensor,
 		Front Sensor.
-		
+
+config IMX175
+	bool "Sensor IMX175 (BAYER 8M)"
+	depends on MSMB_CAMERA
+	---help---
+		Sony 8 MP Bayer Sensor with auto focus
+
 config IMX134
 	bool "Sensor IMX134 (BAYER 8M)"
 	depends on MSMB_CAMERA

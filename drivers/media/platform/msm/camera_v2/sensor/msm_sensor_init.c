@@ -118,11 +118,13 @@ static ssize_t back_camera_type_show(struct device *dev,
 #elif defined (CONFIG_SR200PC20)
 	char type[] = "SILICONFILE_SR200PC20\n";
 #elif defined (CONFIG_MACH_VICTORLTE_CTC) || defined(CONFIG_S5K4ECGX)
-        char type[] = "SLSI_S5K4ECGX\n";
-#elif defined (CONFIG_MACH_S3VE3G_EUR)
-        char type[] = "SONY_IMX175\n";
-#else
+    char type[] = "SLSI_S5K4ECGX\n";
+#elif defined(CONFIG_MACH_S3VE3G_EUR) && defined(CONFIG_IMX175)
+    char type[] = "SONY_IMX175\n";
+#elif (defined(CONFIG_MACH_S3VE3G_EUR) || defined(CONFIG_SEC_MS01_PROJECT)) && defined(CONFIG_S5K4H5YB)
 	char type[] = "SLSI_S5K4H5YB\n";
+#else
+    char type[] = "NULL\n";
 #endif
 
 	 return snprintf(buf, sizeof(type), "%s", type);
@@ -140,11 +142,13 @@ static ssize_t front_camera_type_show(struct device *dev,
 #elif defined(CONFIG_SEC_ATLANTIC_PROJECT) || defined(CONFIG_MACH_VASTALTE_CHN_CTC) || defined(CONFIG_MACH_MEGA2LTE_KTT)|| defined(CONFIG_SEC_HESTIA_PROJECT)
 	char cam_type[] = "SLSI_S5K6B2YX\n";
 #elif defined(CONFIG_MACH_VICTORLTE_CTC)
-         char cam_type[] = "N\n";
+    char cam_type[] = "N\n";
 #elif defined(CONFIG_SEC_VASTALTE_CHN_CMMCC_DUOS_PROJECT)
 	char cam_type[] = "SLSI_S5K5E3YX\n";
-#else
+#elif (defined(CONFIG_MACH_S3VE3G_EUR) || defined(CONFIG_SEC_MS01_PROJECT)) && defined(CONFIG_S5K6A3YX)
 	char cam_type[] = "SLSI_S5K6A3YX\n";
+#else
+    char cam_type[] = "NULL\n";
 #endif
 
 	 return snprintf(buf, sizeof(cam_type), "%s", cam_type);
@@ -184,8 +188,11 @@ static ssize_t back_camera_firmware_show(struct device *dev,
 	|| defined(CONFIG_MACH_KS01LGT)
 	char cam_fw[] = "O13Q0SAGC01 O13Q0SAGC01\n";/*Camsys_module,13mega_pixel,Qualcomm_isp,Sony_sensor*/
 	return snprintf(buf, sizeof(cam_fw), "%s", cam_fw);
-#elif defined(CONFIG_MACH_S3VE3G_EUR)
+#elif defined(CONFIG_MACH_S3VE3G_EUR) && defined(CONFIG_IMX175)
 	char cam_fw[] = "B08QTGJ01MI B08QTGJ01MI\n";
+	return snprintf(buf, sizeof(cam_fw), "%s", cam_fw);
+#elif defined(CONFIG_MACH_S3VE3G_EUR) && defined(CONFIG_S5K4H5YB)
+	char cam_fw[] = "E08QLHI01CI E08QLHI01CI\n";
 	return snprintf(buf, sizeof(cam_fw), "%s", cam_fw);
 #elif defined(CONFIG_MACH_VIENNAEUR) || defined(CONFIG_MACH_VASTALTE_CHN_CTC) || defined (CONFIG_MACH_VICTOR3GDSDTV_LTN)
 	char cam_fw[] = "E08QSGG01OC E08QSGG01OC\n";/* Gumi, 8mega_pixel, Qualcomm_isp, Sony_sensor*/
@@ -220,6 +227,10 @@ static ssize_t back_camera_firmware_store(struct device *dev,
 	char cam_fw_ver[25] = "SR352 N\n";
 #elif defined (CONFIG_SR200PC20)
 	char cam_fw_ver[25] = "SR200PC20 N\n";
+#elif defined(CONFIG_MACH_S3VE3G_EUR) && defined(CONFIG_IMX175)
+	char cam_fw_ver[25] = "B08QTGJ01MI B08QTGJ01MI\n";
+#elif defined(CONFIG_MACH_S3VE3G_EUR) && defined(CONFIG_S5K4H5YB)
+	char cam_fw_ver[25] = "E08QLHI01CI E08QLHI01CI\n";
 #elif defined(CONFIG_MACH_AFYONLTE_TMO) || defined(CONFIG_MACH_AFYONLTE_CAN)\
 	|| defined(CONFIG_MACH_VICTORLTE_CTC) \
 	|| defined (CONFIG_MACH_AFYONLTE_MTR)
@@ -273,6 +284,10 @@ static ssize_t front_camera_firmware_show(struct device *dev,
 #if !defined(REAR_YUV_SENSOR)
 #if defined(CONFIG_SEC_MS01_PROJECT)
 char cam_load_fw[25] = "E08QLGI01CH E08QLGI01CH\n";
+#elif defined(CONFIG_MACH_S3VE3G_EUR) && defined(CONFIG_IMX175)
+char cam_load_fw[25] = "B08QTGJ01MI B08QTGJ01MI\n";
+#elif defined(CONFIG_MACH_S3VE3G_EUR) && defined(CONFIG_S5K4H5YB)
+char cam_load_fw[25] = "E08QLHI01CI E08QLHI01CI\n";
 #else
 char cam_load_fw[25] = "F08QUHE03SM F08QUHE03SM\n";
 #endif
@@ -291,8 +306,10 @@ static ssize_t back_camera_firmware_load_store(struct device *dev,
 	return size;
 }
 #ifndef EEPROM_CAM_FW
-#if defined (CONFIG_MACH_S3VE3G_EUR)
+#if defined (CONFIG_MACH_S3VE3G_EUR) && defined(CONFIG_IMX175)
 char cam_fw_full_ver[40] = "B08QTGJ01MI B08QTGJ01MI B08QTGJ01MI\n";
+#elif defined(CONFIG_MACH_S3VE3G_EUR) && defined(CONFIG_S5K4H5YB)
+char cam_fw_full_ver[40] = "E08QLHI01CI E08QLHI01CI E08QLHI01CI\n";
 #elif defined(CONFIG_SEC_MS01_PROJECT)
 char cam_fw_full_ver[40] = "E08QLGI01CH E08QLGI01CH E08QLGI01CH\n";
 #else
