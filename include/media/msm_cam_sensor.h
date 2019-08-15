@@ -448,7 +448,9 @@ enum camerab_mode_t {
 
 struct sensorb_cfg_data {
 	int cfgtype;
+#if defined(CONFIG_SEC_ATLANTIC_PROJECT) || defined(CONFIG_SEC_MILLET_PROJECT) || defined(CONFIG_SEC_MATISSE_PROJECT)
     int flicker_type;
+#endif
 	union {
 		struct msm_sensor_info_t      sensor_info;
 		void                         *setting;
