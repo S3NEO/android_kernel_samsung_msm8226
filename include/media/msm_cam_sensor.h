@@ -448,7 +448,9 @@ enum camerab_mode_t {
 
 struct sensorb_cfg_data {
 	int cfgtype;
+#if defined(CONFIG_S5K4ECGX) || defined(CONFIG_SR030PC50) || defined(CONFIG_SR352) || defined(CONFIG_SR200PC20) || defined(CONFIG_SR130PC20)
     int flicker_type;
+#endif
 	union {
 		struct msm_sensor_info_t      sensor_info;
 		void                         *setting;
