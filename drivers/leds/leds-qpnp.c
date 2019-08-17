@@ -450,10 +450,14 @@ struct flash_config_data {
 	bool	safety_timer;
 	bool	torch_enable;
 	bool	flash_reg_get;
+#if !defined(CONFIG_LEDS_AN30259A)
 	bool    flash_wa_reg_get;
+#endif
 	bool	flash_on;
 	bool	torch_on;
+#if !defined(CONFIG_LEDS_AN30259A)
 	struct regulator *flash_wa_reg;
+#endif
 #ifndef SAMSUNG_USE_EXTERNAL_CHARGER
 	struct regulator *flash_boost_reg;
 	struct regulator *torch_boost_reg;
@@ -1169,6 +1173,7 @@ static int qpnp_flash_regulator_operate(struct qpnp_led_data *led, bool on)
 
 	if (!regulator_on && !led->flash_cfg->flash_on) {
 #ifndef SAMSUNG_USE_EXTERNAL_CHARGER
+#if !defined(CONFIG_LEDS_AN30259A)
 		for (i = 0; i < led->num_leds; i++) {
 			if (led_array[i].flash_cfg->flash_reg_get) {
 				if (led_array[i].flash_cfg->flash_wa_reg_get) {
@@ -1206,8 +1211,10 @@ static int qpnp_flash_regulator_operate(struct qpnp_led_data *led, bool on)
 			}
 			break;
 			}
+#endif
 		for (i = 0; i < led->num_leds; i++) {
 			if (led_array[i].flash_cfg->flash_reg_get) {
+#if !defined(CONFIG_LEDS_AN30259A)
 				rc = regulator_enable(
 					led_array[i].flash_cfg->flash_wa_reg);
 				if (rc) {
@@ -1216,7 +1223,7 @@ static int qpnp_flash_regulator_operate(struct qpnp_led_data *led, bool on)
 								rc);
 					return rc;
 				}
-
+#endif
 				rc = regulator_enable(
 					led_array[i].flash_cfg->\
 					flash_boost_reg);
@@ -1280,6 +1287,7 @@ regulator_turn_off:
 						"failed(%d)\n", rc);
 					return rc;
 				}
+#if !defined(CONFIG_LEDS_AN30259A)
 				if (led_array[i].flash_cfg->flash_wa_reg_get) {
 					rc = regulator_disable(
 						led_array[i].flash_cfg->
@@ -1292,7 +1300,7 @@ regulator_turn_off:
 						return rc;
 					}
 				}
-
+#endif
 		    
 #endif
 #ifdef SAMSUNG_USE_EXTERNAL_CHARGER
@@ -3337,6 +3345,7 @@ static int __devinit qpnp_get_config_flash(struct qpnp_led_data *led,
 	led->flash_cfg->torch_enable =
 		of_property_read_bool(node, "qcom,torch-enable");
 
+#if !defined(CONFIG_LEDS_AN30259A)
 	if (of_find_property(of_get_parent(node), "flash-wa-supply",
 					NULL) && (!*reg_set)) {
 		led->flash_cfg->flash_wa_reg =
@@ -3351,6 +3360,7 @@ static int __devinit qpnp_get_config_flash(struct qpnp_led_data *led,
 		} else
 			led->flash_cfg->flash_wa_reg_get = true;
 	}
+#endif
 
 	if (led->id == QPNP_ID_FLASH1_LED0) {
 		led->flash_cfg->enable_module = FLASH_ENABLE_LED_0;
