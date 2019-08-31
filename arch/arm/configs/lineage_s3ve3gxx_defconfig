@@ -2571,7 +2571,7 @@ CONFIG_MSM_ISPIF=y
 # CONFIG_S5K3L1YX is not set
 # CONFIG_S5K4E5YA is not set
 # CONFIG_S5K4H5YB is not set
-# CONFIG_S5K6A3YX is not set
+CONFIG_S5K6A3YX=y
 # CONFIG_IMX134 is not set
 # CONFIG_SR352 is not set
 # CONFIG_SR030PC50 is not set
@@ -2579,6 +2579,7 @@ CONFIG_MSM_ISPIF=y
 # CONFIG_SR200PC20 is not set
 # CONFIG_S5K4ECGX is not set
 # CONFIG_IMX135 is not set
+CONFIG_IMX175=y
 # CONFIG_S5K6B2YX is not set
 # CONFIG_OV2720 is not set
 # CONFIG_MT9M114 is not set
