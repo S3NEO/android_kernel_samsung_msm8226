@@ -27,7 +27,6 @@ struct yuv_userset {
     unsigned int aeawblock;
     unsigned int resolution;
     unsigned int prev_resolution;
-    unsigned int flicker;
 };
 
 struct yuv_ctrl {
