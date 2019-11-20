@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -44,8 +44,7 @@ void *vidc_hfi_initialize(enum msm_vidc_hfi_type hfi_type, u32 device_id,
 	}
 
 	if (rc) {
-		if (rc != -EPROBE_DEFER)
-			dprintk(VIDC_ERR, "%s device init failed rc = %d",
+		dprintk(VIDC_ERR, "%s device init failed rc = %d",
 				__func__, rc);
 		goto err_hfi_init;
 	}
@@ -54,14 +53,14 @@ void *vidc_hfi_initialize(enum msm_vidc_hfi_type hfi_type, u32 device_id,
 
 err_hfi_init:
 	kfree(hdev);
-	return ERR_PTR(rc);
+	return NULL;
 }
 
 void vidc_hfi_deinitialize(enum msm_vidc_hfi_type hfi_type,
 			struct hfi_device *hdev)
 {
 	if (!hdev) {
-		dprintk(VIDC_ERR, "%s invalid device %pK", __func__, hdev);
+		dprintk(VIDC_ERR, "%s invalid device %p", __func__, hdev);
 		return;
 	}
 

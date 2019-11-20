@@ -44,14 +44,13 @@ extern "C" {
 #define BBM_ES /* deprecated */
 /* #define BBM_ES_CURRENT */ /* deprecated */
 
-/* From TRLTE onwards, the frequency value is set at run-time during probe of fc8300 */
 /* #define BBM_XTAL_FREQ               16000 */
 /* #define BBM_XTAL_FREQ               16384 */
 /* #define BBM_XTAL_FREQ               18000 */
 /*#define BBM_XTAL_FREQ               19200 */
 /* #define BBM_XTAL_FREQ               24000 */
 /* #define BBM_XTAL_FREQ               24576 */
-/* #define BBM_XTAL_FREQ               26000 */
+ #define BBM_XTAL_FREQ               26000 
 /* #define BBM_XTAL_FREQ               27000 */
 /* #define BBM_XTAL_FREQ               27120 */
 /* #define BBM_XTAL_FREQ               32000 */
@@ -284,8 +283,6 @@ extern "C" {
 	/* CE */
 #define BBM_WSCN_MSQ                0x4063
 #define BBM_AD_GAIN_PERIOD          0x4070
-#define BBM_FAIP_MTD_SR_SHIFT_VALUE 0x417f
-#define BBM_CIR_THR_23              0x41c7
 #define BBM_MAN_PARTIAL_EN          0x41f1
 #define BBM_MAN_LAYER_A_SEG_NUM     0x41f2
 #define BBM_MAN_LAYER_B_SEG_NUM     0x41f3

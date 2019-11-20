@@ -71,12 +71,7 @@ static int fc8150_spi_remove(struct spi_device *spi)
 
 
 static const struct of_device_id tmm_spi_match_table[] = {
-	{
-#ifdef CONFIG_ISDBT_FC8150_HKDI
-	    .compatible = "isdb_spi_comp",
-#else
-	    .compatible = "isdbt_spi_comp",
-#endif
+	{   .compatible = "isdbt_spi_comp",
 	},
 	{}
 };

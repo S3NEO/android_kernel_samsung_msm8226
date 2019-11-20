@@ -63,144 +63,10 @@ struct ISDBT_INIT_INFO_T *hInit;
 static struct isdbt_platform_data *isdbt_pdata;
 
 #define TS0_1SEG_LENGTH	(188 * 32)
-#define TS0_TMM_13SEG_LENGTH (188 * 96)
+#define TS0_TMM_13SEG_LENGTH (188 * 32)
 
 u8 static_ringbuffer[RING_BUFFER_SIZE];
 
-#ifdef TS_DROP_DEBUG
-#define FEATURE_TS_CHECK
-#ifdef FEATURE_TS_CHECK
-u32 check_cnt_size;
-
-#define MAX_DEMUX           2
-
-/*
- * Sync Byte 0xb8
- */
-#define SYNC_BYTE_INVERSION
-
-struct pid_info {
-	unsigned long count;
-	unsigned long discontinuity;
-	unsigned long continuity;
-};
-
-struct demux_info {
-	struct pid_info  pids[8192];
-
-	unsigned long    ts_packet_c;
-	unsigned long    malformed_packet_c;
-	unsigned long    tot_scraped_sz;
-	unsigned long    packet_no;
-	unsigned long    sync_err;
-	unsigned long 	   sync_err_set;
-};
-
-static int is_sync(unsigned char *p)
-{
-	int syncword = p[0];
-#ifdef SYNC_BYTE_INVERSION
-	if (0x47 == syncword || 0xb8 == syncword)
-		return 1;
-#else
-	if (0x47 == syncword)
-		return 1;
-#endif
-	return 0;
-}
-static struct demux_info demux[MAX_DEMUX];
-
-int print_pkt_log(void)
-{
-	unsigned long i = 0;
-
-	print_log(NULL, "\nPKT_TOT : %d, SYNC_ERR : %d, SYNC_ERR_BIT : %d \
-		, ERR_PKT : %d \n"
-		, demux[0].ts_packet_c, demux[0].sync_err
-		, demux[0].sync_err_set, demux[0].malformed_packet_c);
-
-	for (i = 0; i < 8192; i++) {
-		if (demux[0].pids[i].count > 0)
-			print_log(NULL, "PID : %d, TOT_PKT : %d\
-							, DISCONTINUITY : %d \n"
-			, i, demux[0].pids[i].count
-			, demux[0].pids[i].discontinuity);
-	}
-	return 0;
-}
-
-int put_ts_packet(int no, unsigned char *packet, int sz)
-{
-	unsigned char *p;
-	int transport_error_indicator, pid, payload_unit_start_indicator;
-	int continuity_counter, last_continuity_counter;
-	int i;
-	if ((sz % 188)) {
-		print_log(NULL, "L : %d", sz);
-	} else {
-		for (i = 0; i < sz; i += 188) {
-			p = packet + i;
-
-			pid = ((p[1] & 0x1f) << 8) + p[2];
-
-			demux[no].ts_packet_c++;
-			if (!is_sync(packet + i)) {
-				print_log(NULL, "S     ");
-				demux[no].sync_err++;
-				if (0x80 == (p[1] & 0x80))
-					demux[no].sync_err_set++;
-				print_log(NULL, "0x%x, 0x%x, 0x%x, 0x%x \n"
-					, *p, *(p+1),  *(p+2), *(p+3));
-				continue;
-			}
-
-			transport_error_indicator = (p[1] & 0x80) >> 7;
-			if (1 == transport_error_indicator) {
-				demux[no].malformed_packet_c++;
-				continue;
-			}
-
-			payload_unit_start_indicator = (p[1] & 0x40) >> 6;
-
-			demux[no].pids[pid].count++;
-
-			continuity_counter = p[3] & 0x0f;
-
-			if (demux[no].pids[pid].continuity == -1) {
-				demux[no].pids[pid].continuity
-					= continuity_counter;
-			} else {
-				last_continuity_counter
-					= demux[no].pids[pid].continuity;
-
-				demux[no].pids[pid].continuity
-					= continuity_counter;
-
-				if (((last_continuity_counter + 1) & 0x0f)
-					!= continuity_counter) {
-					demux[no].pids[pid].discontinuity++;
-				}
-			}
-		}
-	}
-	return 0;
-}
-
-
-void create_tspacket_anal(void)
-{
-	int n, i;
-
-	for (n = 0; n < MAX_DEMUX; n++) {
-		memset((void *)&demux[n], 0, sizeof(demux[n]));
-
-		for (i = 0; i < 8192; i++)
-			demux[n].pids[i].continuity = -1;
-	}
-
-}
-#endif
-#endif
 enum ISDBT_MODE driver_mode = ISDBT_POWEROFF;
 static DEFINE_MUTEX(ringbuffer_lock);
 
@@ -448,30 +314,12 @@ int data_callback(u32 hDevice, u8 bufid, u8 *data, int len)
 		hOpen = list_entry(temp, struct ISDBT_OPEN_INFO_T, hList);
 
 		if (hOpen->isdbttype == TS_TYPE) {
-#ifdef TS_DROP_DEBUG
-#if 0//def FEATURE_TS_CHECK
-			if (!(len%188)) {
-				put_ts_packet(0, data, len);
-				check_cnt_size += len;
-
-				if (check_cnt_size > 188*32*200) {
-					print_pkt_log();
-					check_cnt_size = 0;
-				}
-			}
-#endif
-#endif
 			mutex_lock(&ringbuffer_lock);
 			if (fci_ringbuffer_free(&hOpen->RingBuffer) < len) {
-#ifdef TS_DROP_DEBUG
-				print_log(NULL, "[FC8300] RingBuffer full  \n");
-#endif
 				/* return 0 */;
 				FCI_RINGBUFFER_SKIP(&hOpen->RingBuffer, len);
 			}
-#ifdef TS_DROP_DEBUG
-			print_log(NULL, "[FC8300] RingBuffer Write %d  \n", len);
-#endif
+
 			fci_ringbuffer_write(&hOpen->RingBuffer, data, len);
 			
 			ISDB_PR_DBG("data_callback : %d [0x%x][0x%x]\n", len, data[0], data[1]);
@@ -480,10 +328,6 @@ int data_callback(u32 hDevice, u8 bufid, u8 *data, int len)
 
 			mutex_unlock(&ringbuffer_lock);
 		}
-#ifdef TS_DROP_DEBUG
-		else
-			print_log(NULL, "[FC8300] Data callback : TS Stop \n");
-#endif
 	}
 
 	return 0;
@@ -601,30 +445,12 @@ ssize_t isdbt_read(struct file *filp, char *buf, size_t count, loff_t *f_pos)
 	else
 		len = count - (count % 188);
 
-
 	read_len = fci_ringbuffer_read_user(cibuf, buf, len);
-#ifdef TS_DROP_DEBUG
-#ifdef FEATURE_TS_CHECK
-	if (!(read_len%188)) {
-		put_ts_packet(0, buf, read_len);
-		check_cnt_size += read_len;
 	
-		if (check_cnt_size > 188*32*200) {
-			print_pkt_log();
-			check_cnt_size = 0;
-		}
-	}
-	else
-		print_log(NULL, "[FC8300] Read Len Error %d \n", read_len);
-#endif
-#endif
+	ISDB_PR_DBG("TS READ : %d [0x%x][0x%x]\n", read_len, buf[0], buf[1]);
 
 	mutex_unlock(&ringbuffer_lock);
 
-
-#ifdef TS_DROP_DEBUG
-	print_log(hInit, "[FC8300] RingBuffer Read %d  Buffer : %d\n", read_len, count);
-#endif
 	return read_len;
 }
 
@@ -852,12 +678,6 @@ long isdbt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	case IOCTL_ISDBT_TS_START:
 		ISDB_PR_DBG("IOCTL_ISDBT_TS_START \n");
-#ifdef TS_DROP_DEBUG
-#ifdef FEATURE_TS_CHECK
-		create_tspacket_anal();
-		check_cnt_size = 0;
-#endif
-#endif
 		hOpen->isdbttype = TS_TYPE;
 
 		break;

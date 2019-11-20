@@ -291,7 +291,6 @@ s32 fc8300_spi_bytewrite(HANDLE handle, DEVICEID devid, u16 addr, u8 data)
 s32 fc8300_spi_wordwrite(HANDLE handle, DEVICEID devid, u16 addr, u16 data)
 {
 	s32 res;
-
 #ifdef BBM_ES
 	u8 command = SPI_WRITE;
 

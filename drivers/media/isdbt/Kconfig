@@ -17,10 +17,7 @@ choice
 		bool "ISDBT_FC8300_SPI"	
 		
 	config ISDBT_FC8150_SPI
-		bool "ISDBT_FC8150_SPI"
-	
-	config ISDBT_FC8150_HKDI
-		bool "ISDBT_FC8150_HKDI"
+		bool "ISDBT_FC8150_SPI"			
 endchoice
 
 config ISDBT_SPMI
@@ -29,8 +26,4 @@ config ISDBT_SPMI
 
 config ISDBT_ANT_DET
 	bool "isdbt antenna detection"
-	default n
-
-config ISDBT_F_TYPE_ANTENNA
-	bool "isdbt F type antenna"
 	default n

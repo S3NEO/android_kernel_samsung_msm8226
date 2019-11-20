@@ -27,9 +27,9 @@
 #include "fci_types.h"
 #include "fc8300_regs.h"
 #include "fci_hal.h"
-#ifdef TS_DROP_DEBUG
 #include "fci_oal.h"
-#endif
+
+
 s32 (*fc8300_ac_callback)(u32 userdata, u8 bufid, u8 *data, s32 length) = NULL;
 s32 (*fc8300_ts_callback)(u32 userdata, u8 bufid, u8 *data, s32 length) = NULL;
 
@@ -45,6 +45,7 @@ static void fc8300_data(HANDLE handle, DEVICEID devid, u8 buf_int_status)
 {
 	u32 size = 0;
 	s32 i;
+	u8 overrun;
 
 	ISDB_PR_DBG("FC8300_DATA buf_int : 0x%x \n", buf_int_status);
 	for (i = 0; (i < 4) && (buf_int_status & 0x0f); i++) {
@@ -101,13 +102,12 @@ static void fc8300_data(HANDLE handle, DEVICEID devid, u8 buf_int_status)
 	}
 #endif
 
-/*
 	bbm_read(handle, DIV_BROADCAST, BBM_BUF_OVERRUN, &overrun);
 	if (overrun)
 		bbm_write(handle, DIV_BROADCAST, BBM_BUF_OVERRUN, overrun);
 		ISDB_PR_DBG("ISR OVR : 0x%x, INT : 0x%x, SIZE : %d \n"
 			, overrun, buf_int_status, size);
-*/
+
 }
 #endif
 
@@ -196,9 +196,6 @@ void fc8300_isr(HANDLE handle)
 #ifndef BBM_I2C_TSIF
 	u8 buf_int_status = 0;
 #endif
-#ifdef TS_DROP_DEBUG
-	u8 over = 0;
-#endif
 
 #ifdef BBM_AUX_INT
 	u8 aux_int_status = 0;
@@ -222,17 +219,7 @@ void fc8300_isr(HANDLE handle)
 				BBM_BUF_STATUS_CLEAR, buf_int_status);
 
 		fc8300_data(handle, DIV_MASTER, buf_int_status);
-#ifdef TS_DROP_DEBUG
-		print_log(handle, "[FC8300] Data Read 2 %d\n", buf_int_status);
-#endif
 	}
-#ifdef TS_DROP_DEBUG
-	bbm_byte_read(handle, DIV_MASTER, BBM_BUF_OVERRUN, &over);
-	if (over) {
-		bbm_byte_write(handle, DIV_MASTER, BBM_BUF_OVERRUN, over);
-		print_log(handle, "[FC8300] Data Overrun  %d\n", over);
-	}
-#endif
 #endif
 
 #ifdef BBM_AUX_INT

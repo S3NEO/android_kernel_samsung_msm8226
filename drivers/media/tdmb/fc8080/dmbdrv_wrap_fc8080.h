@@ -51,7 +51,7 @@ struct sub_channel_info_type {
 	unsigned char ecc;
 };
 
-#if defined(CONFIG_TDMB_TSIF_SLSI) || defined(CONFIG_TDMB_TSIF_QC)
+#ifdef CONFIG_TDMB_TSIF
 void dmb_drv_isr(unsigned char *data, unsigned int length);
 #else
 void dmb_drv_isr(void);

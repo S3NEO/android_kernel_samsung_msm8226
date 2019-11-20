@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1450,6 +1450,7 @@ int create_pkt_cmd_session_set_property(
 		hfi->ltrcount = hal->ltrcount;
 		hfi->trustmode = hal->trustmode;
 		pkt->size += sizeof(u32) + sizeof(struct hfi_ltrmode);
+		pr_err("SET LTR\n");
 		break;
 	}
 	case HAL_CONFIG_VENC_USELTRFRAME:
@@ -1463,6 +1464,7 @@ int create_pkt_cmd_session_set_property(
 		hfi->refltr = hal->refltr;
 		hfi->useconstrnt = hal->useconstrnt;
 		pkt->size += sizeof(u32) + sizeof(struct hfi_ltruse);
+		pr_err("USE LTR\n");
 		break;
 	}
 	case HAL_CONFIG_VENC_MARKLTRFRAME:
@@ -1474,36 +1476,15 @@ int create_pkt_cmd_session_set_property(
 		hfi = (struct hfi_ltrmark *) &pkt->rg_property_data[1];
 		hfi->markframe = hal->markframe;
 		pkt->size += sizeof(u32) + sizeof(struct hfi_ltrmark);
+		pr_err("MARK LTR\n");
 		break;
 	}
-	case HAL_PARAM_VENC_HIER_P_MAX_ENH_LAYERS:
+	case HAL_PARAM_VENC_HIER_P_NUM_FRAMES:
 	{
 		pkt->rg_property_data[0] =
-			HFI_PROPERTY_PARAM_VENC_HIER_P_MAX_NUM_ENH_LAYER;
+			HFI_PROPERTY_PARAM_VENC_HIER_P_NUM_ENH_LAYER;
 		pkt->rg_property_data[1] = *(u32 *)pdata;
 		pkt->size += sizeof(u32) * 2;
-		break;
-	}
-	case HAL_CONFIG_VENC_HIER_P_NUM_FRAMES:
-	{
-		pkt->rg_property_data[0] =
-			HFI_PROPERTY_CONFIG_VENC_HIER_P_ENH_LAYER;
-		pkt->rg_property_data[1] = *(u32 *)pdata;
-		pkt->size += sizeof(u32) * 2;
-		break;
-	}
-	case HAL_PARAM_VENC_ENABLE_INITIAL_QP:
-	{
-		struct hfi_initial_quantization *hfi;
-		struct hal_initial_quantization *quant = pdata;
-		pkt->rg_property_data[0] =
-			HFI_PROPERTY_PARAM_VENC_INITIAL_QP;
-		hfi = (struct hfi_initial_quantization *) &pkt->rg_property_data[1];
-		hfi->init_qp_enable = quant->initqp_enable;
-		hfi->qp_i = quant->qpi;
-		hfi->qp_p = quant->qpp;
-		hfi->qp_b = quant->qpb;
-		pkt->size += sizeof(u32) + sizeof(struct hfi_initial_quantization);
 		break;
 	}
 	case HAL_PARAM_VPE_COLOR_SPACE_CONVERSION:
@@ -1520,6 +1501,20 @@ int create_pkt_cmd_session_set_property(
 
 		dprintk(VIDC_DBG, "%s HAL_PARAM_VPE_COLOR_SPACE_CONVERSION\n",
 				__func__);
+		break;
+	}
+	case HAL_PARAM_VENC_ENABLE_INITIAL_QP:
+	{
+		struct hfi_initial_quantization *hfi;
+		struct hal_initial_quantization *quant = pdata;
+		pkt->rg_property_data[0] =
+			HFI_PROPERTY_PARAM_VENC_INITIAL_QP;
+		hfi = (struct hfi_initial_quantization *) &pkt->rg_property_data[1];
+		hfi->init_qp_enable = quant->initqp_enable;
+		hfi->qp_i = quant->qpi;
+		hfi->qp_p = quant->qpp;
+		hfi->qp_b = quant->qpb;
+		pkt->size += sizeof(u32) + sizeof(struct hfi_initial_quantization);
 		break;
 	}
 	/* FOLLOWING PROPERTIES ARE NOT IMPLEMENTED IN CORE YET */
@@ -1580,7 +1575,7 @@ int create_pkt_ssr_cmd(enum hal_ssr_trigger_type type,
 		struct hfi_cmd_sys_test_ssr_packet *pkt)
 {
 	if (!pkt) {
-		dprintk(VIDC_ERR, "Invalid params, device: %pK\n", pkt);
+		dprintk(VIDC_ERR, "Invalid params, device: %p\n", pkt);
 		return -EINVAL;
 	}
 	pkt->size = sizeof(struct hfi_cmd_sys_test_ssr_packet);
@@ -1593,7 +1588,7 @@ int create_pkt_cmd_sys_image_version(
 		struct hfi_cmd_sys_get_property_packet *pkt)
 {
 	if (!pkt) {
-		dprintk(VIDC_ERR, "%s invalid param :%pK\n", __func__, pkt);
+		dprintk(VIDC_ERR, "%s invalid param :%p\n", __func__, pkt);
 		return -EINVAL;
 	}
 	pkt->size = sizeof(struct hfi_cmd_sys_get_property_packet);

@@ -115,13 +115,13 @@ void dmb_drv_channel_deselect_all(void)
 
 	ms_wait(100);
 
-#if defined(CONFIG_TDMB_TSIF_SLSI) || defined(CONFIG_TDMB_TSIF_QC)
+#ifdef CONFIG_TDMB_TSIF
 	fc8080_demux_deselect_video(current_subchannel_id, 0);
 	fc8080_demux_deselect_channel(current_subchannel_id, 0);
 #endif
 }
 
-#if defined(CONFIG_TDMB_TSIF_SLSI) || defined(CONFIG_TDMB_TSIF_QC)
+#ifdef CONFIG_TDMB_TSIF
 void dmb_drv_isr(u8 *data, u32 length)
 {
 	fc8080_demux(data, length);
@@ -149,7 +149,7 @@ unsigned char dmb_drv_init(unsigned long param)
 #elif defined(CONFIG_TDMB_EBI)
 	if (bbm_com_hostif_select(NULL, BBM_PPI, param))
 		return TDMB_FAIL;
-#elif defined(CONFIG_TDMB_TSIF_SLSI) || defined(CONFIG_TDMB_TSIF_QC)
+#elif defined(CONFIG_TDMB_TSIF)
 	if (bbm_com_hostif_select(NULL, BBM_I2C, param))
 		return TDMB_FAIL;
 #endif
@@ -160,7 +160,7 @@ unsigned char dmb_drv_init(unsigned long param)
 		return TDMB_FAIL;
 	}
 
-#if defined(CONFIG_TDMB_TSIF_SLSI) || defined(CONFIG_TDMB_TSIF_QC)
+#ifdef CONFIG_TDMB_TSIF
 	fc8080_demux_fic_callback_register(
 		(u32)NULL, tdmb_interrupt_fic_callback);
 	fc8080_demux_msc_callback_register(
@@ -305,6 +305,7 @@ unsigned char dmb_drv_scan_ch(unsigned long frequency)
 
 int dmb_drv_get_dmb_sub_ch_cnt()
 {
+	struct service_info_t *svc_info;
 	int i, n;
 
 	if (!dmb_initialize)
@@ -312,7 +313,6 @@ int dmb_drv_get_dmb_sub_ch_cnt()
 
 	n = 0;
 	for (i = 0; i < MAX_SVC_NUM; i++) {
-		struct service_info_t *svc_info;
 		svc_info = fic_decoder_get_service_info_list(i);
 
 		if ((svc_info->flag & 0x07) == 0x07) {
@@ -327,6 +327,7 @@ int dmb_drv_get_dmb_sub_ch_cnt()
 
 int dmb_drv_get_dab_sub_ch_cnt()
 {
+	struct service_info_t *svc_info;
 	int i, n;
 
 	if (!dmb_initialize)
@@ -334,7 +335,6 @@ int dmb_drv_get_dab_sub_ch_cnt()
 
 	n = 0;
 	for (i = 0; i < MAX_SVC_NUM; i++) {
-		struct service_info_t *svc_info;
 		svc_info = fic_decoder_get_service_info_list(i);
 
 		if ((svc_info->flag & 0x07) == 0x07) {
@@ -349,6 +349,7 @@ int dmb_drv_get_dab_sub_ch_cnt()
 
 int dmb_drv_get_dat_sub_ch_cnt(void)
 {
+	struct service_info_t *svc_info;
 	int i, n;
 
 	if (!dmb_initialize)
@@ -356,7 +357,6 @@ int dmb_drv_get_dat_sub_ch_cnt(void)
 
 	n = 0;
 	for (i = 0; i < MAX_SVC_NUM; i++) {
-		struct service_info_t *svc_info;
 		svc_info = fic_decoder_get_service_info_list(i);
 
 		if ((svc_info->flag & 0x07) == 0x07) {
@@ -387,6 +387,7 @@ char *dmb_drv_get_ensemble_label()
 char *dmb_drv_get_sub_ch_dmb_label(int subchannel_count)
 {
 	int i, n;
+	struct service_info_t *svc_info;
 	char *label = NULL;
 
 	if (!dmb_initialize)
@@ -394,7 +395,6 @@ char *dmb_drv_get_sub_ch_dmb_label(int subchannel_count)
 
 	n = 0;
 	for (i = 0; i < MAX_SVC_NUM; i++) {
-		struct service_info_t *svc_info;
 		svc_info = fic_decoder_get_service_info_list(i);
 
 		if ((svc_info->flag & 0x07) == 0x07) {
@@ -415,6 +415,7 @@ char *dmb_drv_get_sub_ch_dmb_label(int subchannel_count)
 char *dmb_drv_get_sub_ch_dab_label(int subchannel_count)
 {
 	int i, n;
+	struct service_info_t *svc_info;
 	char *label = NULL;
 
 	if (!dmb_initialize)
@@ -422,7 +423,6 @@ char *dmb_drv_get_sub_ch_dab_label(int subchannel_count)
 
 	n = 0;
 	for (i = 0; i < MAX_SVC_NUM; i++) {
-		struct service_info_t *svc_info;
 		svc_info = fic_decoder_get_service_info_list(i);
 
 		if ((svc_info->flag & 0x07) == 0x07) {
@@ -443,6 +443,7 @@ char *dmb_drv_get_sub_ch_dab_label(int subchannel_count)
 char *dmb_drv_get_sub_ch_dat_label(int subchannel_count)
 {
 	int i, n;
+	struct service_info_t *svc_info;
 	char *label = NULL;
 
 	if (!dmb_initialize)
@@ -450,7 +451,6 @@ char *dmb_drv_get_sub_ch_dat_label(int subchannel_count)
 
 	n = 0;
 	for (i = 0; i < MAX_SVC_NUM; i++) {
-		struct service_info_t *svc_info;
 		svc_info = fic_decoder_get_service_info_list(i);
 
 		if ((svc_info->flag & 0x07) == 0x07) {
@@ -711,7 +711,7 @@ unsigned long frequency
 	else
 		bbm_com_data_select(NULL, subchannel, 2);
 
-#if defined(CONFIG_TDMB_TSIF_SLSI) || defined(CONFIG_TDMB_TSIF_QC)
+#ifdef CONFIG_TDMB_TSIF
 	if (sevice_type == 0x18)
 		fc8080_demux_select_video(subchannel, 0);
 	else if (sevice_type == 0x00)

@@ -58,7 +58,6 @@ extern unsigned int sec_dbg_level;
 #endif
 	
 /* #define FEATURE_DEBUG_BROADCAST */
-/* #define TS_DROP_DEBUG */
 //#define BBM_I2C_SPI
 /* #define BBM_I2C_TSIF */
 #define BBM_INT_LOW_ACTIVE
@@ -71,7 +70,7 @@ extern unsigned int sec_dbg_level;
 /* #define BBM_DESCRAMBLER */
 #define BBM_SPI_30M /* ONLY CS */
 /* #define BBM_I2C_PARALLEL_TSIF */
-/* #define BBM_ES */ /* deprecated */
+#define BBM_ES /* deprecated */
 /* #define BBM_ES_CURRENT */ /* deprecated */
 
 /* #define BBM_XTAL_FREQ               16000 */
