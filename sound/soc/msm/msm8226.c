@@ -2676,7 +2676,7 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 
 #ifdef CONFIG_SND_SOC_MAX98504
 		extern int system_rev;
-#if defined(CONFIG_MACH_MILLETLTE_OPEN) || defined(CONFIG_MACH_MILLETLTE_KOR)
+#if defined(CONFIG_MACH_MILLETLTE_OPEN) || defined(CONFIG_MACH_MILLETLTE_KOR) || defined(CONFIG_MACH_MILLETLTE_TMO)
 		if ( system_rev >= 0 && system_rev < 3)
 #elif defined (CONFIG_MACH_MILLET3G_EUR) || defined (CONFIG_MACH_BERLUTI3G_EUR)
 		if ( system_rev >= 2 && system_rev < 4)
