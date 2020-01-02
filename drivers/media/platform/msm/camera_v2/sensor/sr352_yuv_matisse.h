@@ -36442,7 +36442,6 @@ static struct msm_camera_i2c_reg_conf sr352_50hz_setting[] = {
 {0x03, 0xc7,},
 {0x10, 0x70,},	//AE Off (Band Off) 50hz 70, 60hz 50
 {0x12, 0x30,}, // Fast speed
-{0x13, 0x61,},
 {0x15, 0xc0,}, // SSD Patch Weight Y Mean On
 
 {0x1e, 0x03,}, // Band1 Step
@@ -36607,7 +36606,6 @@ static struct msm_camera_i2c_reg_conf sr352_60hz_setting[] = {
 {0x03, 0xc7,},
 {0x10, 0x50,},	//AE Off (Band Off) 50hz 70, 60hz 50
 {0x12, 0x30,}, // Fast speed
-{0x13, 0x61,},
 {0x15, 0xc0,}, // SSD Patch Weight Y Mean On
 
 {0x1e, 0x03,}, // Band1 Step
@@ -36695,7 +36693,7 @@ static struct msm_camera_i2c_reg_conf sr352_HD_60hz_setting[] = {
 ///////////////////////////////////////////////////////////////////////////////
 //Shutter Setting
 {0x03, 0xc7,},
-{0x10, 0x10,},	// AE Off (Band Off) 50hz 30, 60hz 10
+{0x10, 0x30,},	// AE Off (Band Off) 50hz 30, 60hz 10
 {0x12, 0x03,}, // Slow AE
 {0x15, 0xc0,}, // SSD Patch Weight Y Mean On
 

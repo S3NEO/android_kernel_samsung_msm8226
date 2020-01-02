@@ -17609,57 +17609,6 @@ static struct msm_camera_i2c_reg_conf sr352_preview_320_240[] ={
 
 };
 
-#ifdef CONFIG_MACH_MILLETLTE_KOR
-static struct msm_camera_i2c_reg_conf sr352_preview_352_288[] ={
-{0x03, 0xc1,},
-{0x10, 0x06,}, // ssd tranfer disable
-{0xff, 0x01,},
-
-{0x03, 0x00,},
-{0x01, 0x01,},	// Sleep On
-
-{0x03, 0xc1,},
-{0x10, 0x07,}, // ssd tranfer enable
-
-///////////////////////////////////////////
-//  Scaler 352_288
-///////////////////////////////////////////
-{0x03, 0x19,},
-{0x10, 0x00,}, //hw scaler off
-{0x14, 0x03,}, //sawtooth on 320_240 176_144 pre filter //Bit[5] on
-
-//Scaler
-{0x03, 0xc0,},
-{0xa0, 0x00,}, //fw scaler off
-{0xa2, 0x01,}, //width
-{0xa3, 0x60,},
-{0xa4, 0x01,}, //height
-{0xa5, 0x20,},
-
-{0xa1, 0x00,}, //zoom step
-{0xa0, 0xc0,}, //fw scaler on
-
-{0x03, 0x19,},
-{0x10, 0x07,}, //hw scaler on
-
-///////////////////////////////////////////
-// 05 Page MIPI Size
-///////////////////////////////////////////
-{0x03, 0x05,},  // Page05
-
-{0x30, 0x02,},  // l_pkt_wc_h  // Pre = 352 * 2 (YUV)
-{0x31, 0xc0,},  // l_pkt_wc_l
-//------------------------------------//
-
-{0x03, 0x00,},
-{0x1e, 0x01,}, // frame update
-{0x01, 0x00,},	// Sleep Off
-
-{0xff, 0x01,}, //delay 10ms
-};
-#endif
-
-
 static struct msm_camera_i2c_reg_conf sr352_preview_800_480[] ={
 {0x03, 0xc1,},
 {0x10, 0x06,}, // ssd tranfer disable
