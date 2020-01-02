@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -285,7 +285,7 @@ static int read_platform_resources(struct msm_vidc_core *core,
 		struct platform_device *pdev)
 {
 	if (!core || !pdev) {
-		dprintk(VIDC_ERR, "%s: Invalid params %pK %pK\n",
+		dprintk(VIDC_ERR, "%s: Invalid params %p %p\n",
 			__func__, core, pdev);
 		return -EINVAL;
 	}
@@ -319,6 +319,7 @@ static int msm_vidc_initialize_core(struct platform_device *pdev,
 	}
 
 	INIT_LIST_HEAD(&core->instances);
+	mutex_init(&core->sync_lock);
 	mutex_init(&core->lock);
 
 	core->state = VIDC_CORE_UNINIT;
@@ -327,7 +328,6 @@ static int msm_vidc_initialize_core(struct platform_device *pdev,
 		init_completion(&core->completions[i]);
 	}
 
-	INIT_DELAYED_WORK(&core->fw_unload_work, msm_vidc_fw_unload_handler);
 	return rc;
 }
 
@@ -397,22 +397,18 @@ static int __devinit msm_vidc_probe(struct platform_device *pdev)
 	rc = msm_vidc_initialize_core(pdev, core);
 	if (rc) {
 		dprintk(VIDC_ERR, "Failed to init core\n");
-		goto err_core_init;
+		goto err_v4l2_register;
 	}
 	rc = device_create_file(&pdev->dev, &dev_attr_pwr_collapse_delay);
 	if (rc) {
 		dprintk(VIDC_ERR,
 				"Failed to create pwr_collapse_delay sysfs node");
-		goto err_core_init;
+		goto err_v4l2_register;
 	}
 	if (core->hfi_type == VIDC_HFI_Q6) {
 		dprintk(VIDC_ERR, "Q6 hfi device probe called\n");
 		nr += MSM_VIDC_MAX_DEVICES;
-		core->id = MSM_VIDC_CORE_Q6;
-	} else {
-		core->id = MSM_VIDC_CORE_VENUS;
 	}
-
 	rc = v4l2_device_register(&pdev->dev, &core->v4l2_dev);
 	if (rc) {
 		dprintk(VIDC_ERR, "Failed to register v4l2 device\n");
@@ -465,20 +461,16 @@ static int __devinit msm_vidc_probe(struct platform_device *pdev)
 				vidc_driver->num_cores);
 		goto err_cores_exceeded;
 	}
-	vidc_driver->num_cores++;
+	core->id = vidc_driver->num_cores++;
 	mutex_unlock(&vidc_driver->lock);
 
 	core->device = vidc_hfi_initialize(core->hfi_type, core->id,
 				&core->resources, &handle_cmd_response);
-	if (IS_ERR_OR_NULL(core->device)) {
+	if (!core->device) {
+		dprintk(VIDC_ERR, "Failed to create HFI device\n");
 		mutex_lock(&vidc_driver->lock);
 		vidc_driver->num_cores--;
 		mutex_unlock(&vidc_driver->lock);
-		rc = PTR_ERR(core->device);
-		if (rc != -EPROBE_DEFER)
-			dprintk(VIDC_ERR, "Failed to create HFI device\n");
-		else
-			dprintk(VIDC_DBG, "msm_vidc: request probe defer\n");
 		goto err_cores_exceeded;
 	}
 
@@ -503,8 +495,6 @@ err_dec_attr_link_name:
 err_dec_register:
 	v4l2_device_unregister(&core->v4l2_dev);
 err_v4l2_register:
-	device_remove_file(&pdev->dev, &dev_attr_pwr_collapse_delay);
-err_core_init:
 	kfree(core);
 err_no_mem:
 	return rc;
@@ -516,7 +506,7 @@ static int __devexit msm_vidc_remove(struct platform_device *pdev)
 	struct msm_vidc_core *core;
 
 	if (!pdev) {
-		dprintk(VIDC_ERR, "%s invalid input %pK", __func__, pdev);
+		dprintk(VIDC_ERR, "%s invalid input %p", __func__, pdev);
 		return -EINVAL;
 	}
 	core = pdev->dev.platform_data;
@@ -541,36 +531,6 @@ static int __devexit msm_vidc_remove(struct platform_device *pdev)
 }
 static const struct of_device_id msm_vidc_dt_match[] = {
 	{.compatible = "qcom,msm-vidc"},
-	{}
-};
-
-static int msm_vidc_pm_suspend(struct device *pdev)
-{
-	struct msm_vidc_core *core;
-
-	if (!pdev) {
-		dprintk(VIDC_ERR, "%s invalid device\n", __func__);
-		return -EINVAL;
-	}
-
-	core = (struct msm_vidc_core *)pdev->platform_data;
-	if (!core) {
-		dprintk(VIDC_ERR, "%s invalid core\n", __func__);
-		return -EINVAL;
-	}
-	dprintk(VIDC_INFO, "%s\n", __func__);
-
-	return msm_vidc_suspend(core->id);
-}
-
-static int msm_vidc_pm_resume(struct device *dev)
-{
-	dprintk(VIDC_INFO, "%s\n", __func__);
-	return 0;
-}
-
-static const struct dev_pm_ops msm_vidc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(msm_vidc_pm_suspend, msm_vidc_pm_resume)
 };
 
 MODULE_DEVICE_TABLE(of, msm_vidc_dt_match);
@@ -582,7 +542,6 @@ static struct platform_driver msm_vidc_driver = {
 		.name = "msm_vidc_v4l2",
 		.owner = THIS_MODULE,
 		.of_match_table = msm_vidc_dt_match,
-		.pm = &msm_vidc_pm_ops,
 	},
 };
 
@@ -608,7 +567,6 @@ static int __init msm_vidc_init(void)
 	if (rc) {
 		dprintk(VIDC_ERR,
 			"Failed to register platform driver\n");
-		debugfs_remove_recursive(vidc_driver->debugfs_root);
 		kfree(vidc_driver);
 		vidc_driver = NULL;
 	}

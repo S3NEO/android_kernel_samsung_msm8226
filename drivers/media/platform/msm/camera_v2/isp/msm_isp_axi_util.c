@@ -24,11 +24,15 @@ int msm_isp_axi_create_stream(
 	struct msm_vfe_axi_shared_data *axi_data,
 	struct msm_vfe_axi_stream_request_cmd *stream_cfg_cmd)
 {
-	uint32_t i = stream_cfg_cmd->stream_src;
-	if (i >= VFE_AXI_SRC_MAX) {
-		pr_err("%s:%d invalid stream_src %d\n", __func__, __LINE__,
-			stream_cfg_cmd->stream_src);
-		return -EINVAL;
+	int i, rc = -1;
+	for (i = 0; i < MAX_NUM_STREAM; i++) {
+		if (axi_data->stream_info[i].state == AVALIABLE)
+			break;
+	}
+
+	if (i == MAX_NUM_STREAM) {
+		pr_err("%s: No free stream\n", __func__);
+		return rc;
 	}
 
 	if ((axi_data->stream_handle_cnt << 8) == 0)
@@ -232,18 +236,14 @@ void msm_isp_axi_reserve_wm(struct msm_vfe_axi_shared_data *axi_data,
 			if (!axi_data->free_wm[j]) {
 				axi_data->free_wm[j] =
 					stream_info->stream_handle;
+				axi_data->wm_image_size[j] =
 					msm_isp_axi_get_plane_size(
 						stream_info, i);
-						axi_data->wm_image_size[j] =
-						stream_info->plane_cfg[i].output_height *
-						stream_info->plane_cfg[i].output_width;
 				axi_data->num_used_wm++;
 				break;
 			}
 		}
 		stream_info->wm[i] = j;
-		pr_err("%s reserved WM %d for stream %d session %d\n", __func__, j, stream_info->stream_id,
-			stream_info->session_id);
 	}
 }
 
@@ -301,14 +301,7 @@ int msm_isp_axi_check_stream_state(
 	enum msm_vfe_axi_state valid_state =
 		(stream_cfg_cmd->cmd == START_STREAM) ? INACTIVE : ACTIVE;
 
-	if (stream_cfg_cmd->num_streams > MAX_NUM_STREAM) {
-		return -EINVAL;
-	}
-
 	for (i = 0; i < stream_cfg_cmd->num_streams; i++) {
-		if (HANDLE_TO_IDX(stream_cfg_cmd->stream_handle[i]) >= MAX_NUM_STREAM) {
-			return -EINVAL;
-		}
 		stream_info = &axi_data->stream_info[
 			HANDLE_TO_IDX(stream_cfg_cmd->stream_handle[i])];
 		spin_lock_irqsave(&stream_info->lock, flags);
@@ -317,8 +310,7 @@ int msm_isp_axi_check_stream_state(
 				stream_info->state == PAUSED ||
 				stream_info->state == RESUME_PENDING ||
 				stream_info->state == RESUMING) &&
-				(stream_cfg_cmd->cmd == STOP_STREAM ||
-				stream_cfg_cmd->cmd == STOP_IMMEDIATELY)) {
+				stream_cfg_cmd->cmd == STOP_STREAM) {
 				stream_info->state = ACTIVE;
 			} else {
 				spin_unlock_irqrestore(
@@ -499,8 +491,8 @@ int msm_isp_request_axi_stream(struct vfe_device *vfe_dev, void *arg)
 		&vfe_dev->axi_data, stream_cfg_cmd);
 	if (rc) {
 		pr_err("%s: Request validation failed\n", __func__);
-		if (HANDLE_TO_IDX(stream_cfg_cmd->axi_stream_handle) < MAX_NUM_STREAM)
-			msm_isp_axi_destroy_stream(&vfe_dev->axi_data,HANDLE_TO_IDX(stream_cfg_cmd->axi_stream_handle));
+		msm_isp_axi_destroy_stream(&vfe_dev->axi_data,
+			HANDLE_TO_IDX(stream_cfg_cmd->axi_stream_handle));
 		return rc;
 	}
 
@@ -550,14 +542,10 @@ int msm_isp_release_axi_stream(struct vfe_device *vfe_dev, void *arg)
 	int rc = 0, i;
 	struct msm_vfe_axi_stream_release_cmd *stream_release_cmd = arg;
 	struct msm_vfe_axi_shared_data *axi_data = &vfe_dev->axi_data;
-	struct msm_vfe_axi_stream *stream_info;
+	struct msm_vfe_axi_stream *stream_info =
+		&axi_data->stream_info[
+		HANDLE_TO_IDX(stream_release_cmd->stream_handle)];
 	struct msm_vfe_axi_stream_cfg_cmd stream_cfg;
-
-	if (HANDLE_TO_IDX(stream_release_cmd->stream_handle) >= MAX_NUM_STREAM) {
-		pr_err("%s: Invalid stream handle\n", __func__);
-		return -EINVAL;
-	}
-	stream_info = &axi_data->stream_info[HANDLE_TO_IDX(stream_release_cmd->stream_handle)];
 
 	if (stream_info->state == AVALIABLE) {
 		pr_err("%s: Stream already released\n", __func__);
@@ -640,9 +628,7 @@ void msm_isp_axi_stream_update(struct vfe_device *vfe_dev)
 		}
 	}
 
-	if (vfe_dev->axi_data.pipeline_update == DISABLE_CAMIF ||
-	    (vfe_dev->axi_data.pipeline_update ==
-		  DISABLE_CAMIF_IMMEDIATELY)) {
+	if (vfe_dev->axi_data.pipeline_update == DISABLE_CAMIF) {
 		vfe_dev->hw_info->vfe_ops.stats_ops.
 			enable_module(vfe_dev, 0xFF, 0);
 		vfe_dev->axi_data.pipeline_update = NO_UPDATE;
@@ -781,10 +767,6 @@ static void msm_isp_process_done_buf(struct vfe_device *vfe_dev,
 	uint32_t stream_idx = HANDLE_TO_IDX(stream_info->stream_handle);
 	uint32_t frame_id = vfe_dev->axi_data.
 		src_info[SRC_TO_INTF(stream_info->stream_src)].frame_id;
-	if (stream_idx >= MAX_NUM_STREAM) {
-		pr_err("%s: Invalid stream_idx", __func__);
-		return;
-	}
 
 	if (buf && ts) {
 		if (stream_info->buf_divert) {
@@ -847,10 +829,6 @@ enum msm_isp_camif_update_state
 			(cur_pix_stream_cnt - pix_stream_cnt) == 0 &&
 			stream_cfg_cmd->cmd == STOP_STREAM)
 			return DISABLE_CAMIF;
-		else if (cur_pix_stream_cnt &&
-			(cur_pix_stream_cnt - pix_stream_cnt) == 0 &&
-			stream_cfg_cmd->cmd == STOP_IMMEDIATELY)
-			return DISABLE_CAMIF_IMMEDIATELY;
 	}
 	return NO_UPDATE;
 }
@@ -862,15 +840,7 @@ void msm_isp_update_camif_output_count(
 	int i;
 	struct msm_vfe_axi_stream *stream_info;
 	struct msm_vfe_axi_shared_data *axi_data = &vfe_dev->axi_data;
-
-	if (stream_cfg_cmd->num_streams > MAX_NUM_STREAM) {
-		return;
-	}
-
 	for (i = 0; i < stream_cfg_cmd->num_streams; i++) {
-		if (HANDLE_TO_IDX(stream_cfg_cmd->stream_handle[i]) >= MAX_NUM_STREAM) {
-			return;
-		}
 		stream_info =
 			&axi_data->stream_info[
 			HANDLE_TO_IDX(stream_cfg_cmd->stream_handle[i])];
@@ -950,8 +920,8 @@ static int msm_isp_update_stream_bandwidth(struct vfe_device *vfe_dev)
 	if (num_pix_streams > 0)
 		total_pix_bandwidth = total_pix_bandwidth /
 			num_pix_streams * (num_pix_streams - 1) +
-			(unsigned long)axi_data->src_info[VFE_PIX_0].pixel_clock *
-			(ISP_DEFAULT_FORMAT_FACTOR / ISP_Q2);
+			axi_data->src_info[VFE_PIX_0].pixel_clock *
+			ISP_DEFAULT_FORMAT_FACTOR / ISP_Q2;
 	total_bandwidth = total_pix_bandwidth + total_rdi_bandwidth;
 
 	rc = msm_isp_update_bandwidth(ISP_VFE0 + vfe_dev->pdev->id,
@@ -971,7 +941,9 @@ static int msm_isp_axi_wait_for_cfg_done(struct vfe_device *vfe_dev,
 	spin_lock_irqsave(&vfe_dev->shared_data_lock, flags);
 	init_completion(&vfe_dev->stream_config_complete);
 	vfe_dev->axi_data.pipeline_update = camif_update;
-#if defined(CONFIG_SEC_CONFIGURE_ISP_STOP)
+#if defined(CONFIG_MACH_AFYONLTE_TMO) \
+	|| defined(CONFIG_MACH_AFYONLTE_MTR) \
+	|| defined(CONFIG_SEC_RUBENS_PROJECT)
 	vfe_dev->axi_data.stream_update = 1;
 #else
 	vfe_dev->axi_data.stream_update = 2;
@@ -1045,7 +1017,9 @@ static void msm_isp_get_stream_wm_mask(
 		*wm_reload_mask |= (1 << stream_info->wm[i]);
 }
 
-#if defined(CONFIG_SEC_CONFIGURE_ISP_STOP)
+#if defined(CONFIG_MACH_AFYONLTE_TMO) \
+	|| defined(CONFIG_MACH_AFYONLTE_MTR) \
+	|| defined(CONFIG_SEC_RUBENS_PROJECT)
 
 static void msm_isp_axi_stream_update_new(struct vfe_device *vfe_dev, enum msm_isp_camif_update_state camif_update)
 {
@@ -1077,19 +1051,7 @@ static int msm_isp_start_axi_stream(struct vfe_device *vfe_dev,
 	uint32_t wm_reload_mask = 0x0;
 	struct msm_vfe_axi_stream *stream_info;
 	struct msm_vfe_axi_shared_data *axi_data = &vfe_dev->axi_data;
-
-	if (stream_cfg_cmd->num_streams > MAX_NUM_STREAM) {
-		return -EINVAL;
-	}
-
-	if (stream_cfg_cmd->num_streams > MAX_NUM_STREAM) {
-		return -EINVAL;
-	}
-
 	for (i = 0; i < stream_cfg_cmd->num_streams; i++) {
-		if (HANDLE_TO_IDX(stream_cfg_cmd->stream_handle[i]) >= MAX_NUM_STREAM) {
-			return -EINVAL;
-		}
 		stream_info = &axi_data->stream_info[
 			HANDLE_TO_IDX(stream_cfg_cmd->stream_handle[i])];
 		src_state = axi_data->src_info[
@@ -1128,7 +1090,9 @@ static int msm_isp_start_axi_stream(struct vfe_device *vfe_dev,
 		vfe_dev->hw_info->vfe_ops.core_ops.
 			update_camif_state(vfe_dev, camif_update);
 	}
-#if defined(CONFIG_SEC_CONFIGURE_ISP_STOP)
+#if defined(CONFIG_MACH_AFYONLTE_TMO) \
+	|| defined(CONFIG_MACH_AFYONLTE_MTR) \
+	|| defined(CONFIG_SEC_RUBENS_PROJECT)
 	if (wait_for_complete){
 		msm_isp_axi_stream_update_new(vfe_dev, camif_update);
 		rc = msm_isp_axi_wait_for_cfg_done(vfe_dev, camif_update);
@@ -1148,24 +1112,14 @@ static int msm_isp_stop_axi_stream(struct vfe_device *vfe_dev,
 	int i, rc = 0;
 	struct msm_vfe_axi_stream *stream_info;
 	struct msm_vfe_axi_shared_data *axi_data = &vfe_dev->axi_data;
-
-	if (stream_cfg_cmd->num_streams > MAX_NUM_STREAM) {
-		return -EINVAL;
-	}
-
-	if (stream_cfg_cmd->num_streams > MAX_NUM_STREAM) {
-		return -EINVAL;
-	}
-
 	for (i = 0; i < stream_cfg_cmd->num_streams; i++) {
-		if (HANDLE_TO_IDX(stream_cfg_cmd->stream_handle[i]) >= MAX_NUM_STREAM) {
-			return -EINVAL;
-		}
 		stream_info = &axi_data->stream_info[
 			HANDLE_TO_IDX(stream_cfg_cmd->stream_handle[i])];
 		stream_info->state = STOP_PENDING;
 	}
-#if defined(CONFIG_SEC_CONFIGURE_ISP_STOP)
+#if defined(CONFIG_MACH_AFYONLTE_TMO) \
+	|| defined (CONFIG_MACH_AFYONLTE_MTR) \
+	|| defined(CONFIG_SEC_RUBENS_PROJECT)
 	pr_err("[richard] %s : state [%d], camif_update [%d]\n", __func__, stream_info->state, camif_update);
 	msm_isp_axi_stream_update_new(vfe_dev, DISABLE_CAMIF);
 	rc = msm_isp_axi_wait_for_cfg_done(vfe_dev, NO_UPDATE);
@@ -1189,9 +1143,6 @@ static int msm_isp_stop_axi_stream(struct vfe_device *vfe_dev,
 	if (camif_update == DISABLE_CAMIF)
 		vfe_dev->hw_info->vfe_ops.core_ops.
 			update_camif_state(vfe_dev, DISABLE_CAMIF);
-	else if (camif_update == DISABLE_CAMIF_IMMEDIATELY)
-		vfe_dev->hw_info->vfe_ops.core_ops.
-			update_camif_state(vfe_dev, DISABLE_CAMIF_IMMEDIATELY);
 	msm_isp_update_camif_output_count(vfe_dev, stream_cfg_cmd);
 
 	for (i = 0; i < stream_cfg_cmd->num_streams; i++) {
@@ -1248,16 +1199,8 @@ int msm_isp_update_axi_stream(struct vfe_device *vfe_dev, void *arg)
 		return -EBUSY;
 	}
 
-	/*num_stream is uint32 and update_info[] bound by MAX_NUM_STREAM*/
-	if (update_cmd->num_streams > MAX_NUM_STREAM) {
-		return -EINVAL;
-	}
-
 	for (i = 0; i < update_cmd->num_streams; i++) {
 		update_info = &update_cmd->update_info[i];
-		if (HANDLE_TO_IDX(update_info->stream_handle) >= MAX_NUM_STREAM) {
-			return -EINVAL;
-		}
 		stream_info = &axi_data->stream_info[
 				HANDLE_TO_IDX(update_info->stream_handle)];
 		if (stream_info->state != ACTIVE &&
@@ -1355,8 +1298,7 @@ void msm_isp_process_axi_irq(struct vfe_device *vfe_dev,
 	for (i = 0; i < axi_data->hw_info->num_comp_mask; i++) {
 		comp_info = &axi_data->composite_info[i];
 		if (comp_mask & (1 << i)) {
-			stream_idx = HANDLE_TO_IDX(comp_info->stream_handle);
-			if ((!comp_info->stream_handle) || (stream_idx >= MAX_NUM_STREAM)) {
+			if (!comp_info->stream_handle) {
 				pr_err("%s: Invalid handle for composite irq\n",
 					__func__);
 			} else {
@@ -1393,12 +1335,12 @@ void msm_isp_process_axi_irq(struct vfe_device *vfe_dev,
 
 	for (i = 0; i < axi_data->hw_info->num_wm; i++) {
 		if (wm_mask & (1 << i)) {
-			stream_idx = HANDLE_TO_IDX(axi_data->free_wm[i]);
-			if ((!axi_data->free_wm[i]) || (stream_idx >= MAX_NUM_STREAM)) {
+			if (!axi_data->free_wm[i]) {
 				pr_err("%s: Invalid handle for wm irq\n",
 					__func__);
 				continue;
 			}
+			stream_idx = HANDLE_TO_IDX(axi_data->free_wm[i]);
 			stream_info = &axi_data->stream_info[stream_idx];
 			ISP_DBG("%s: stream%d frame id: 0x%x\n",
 				__func__,
