@@ -697,7 +697,11 @@ static int mdss_mdp_video_display(struct mdss_mdp_ctl *ctl, void *arg)
 	struct mdss_mdp_video_ctx *ctx;
 	struct mdss_mdp_ctl *sctl;
 	struct mdss_panel_data *pdata = ctl->panel_data;
+#if defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL)
+	int rc;
+#else
 	int rc = 0;
+#endif
 
 	pr_debug("kickoff ctl=%d\n", ctl->num);
 
@@ -720,10 +724,10 @@ static int mdss_mdp_video_display(struct mdss_mdp_ctl *ctl, void *arg)
 	} else {
 		WARN(1, "commit without wait! ctl=%d", ctl->num);
 	}
-
+#if !defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL)
 	if(pdata->panel_info.cont_splash_enabled)
 		return rc;
-
+#endif
 	MDSS_XLOG(ctl->num, ctl->underrun_cnt);
 
 	if (!ctx->timegen_en) {
@@ -897,7 +901,7 @@ error:
 	pdata->panel_info.cont_splash_enabled = 0;
 	return ret;
 }
-
+#if !defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL)
 static void mdss_mdp_video_pingpong_done(void *arg)
 {
   	struct mdss_mdp_ctl *ctl = arg;
@@ -931,7 +935,7 @@ static int mdss_mdp_video_wait4pingpong(struct mdss_mdp_ctl *ctl, void *arg)
 
 	return rc;
 }
-
+#endif
 int mdss_mdp_video_start(struct mdss_mdp_ctl *ctl)
 {
 	struct mdss_data_type *mdata;
@@ -988,8 +992,10 @@ int mdss_mdp_video_start(struct mdss_mdp_ctl *ctl)
 					mdss_mdp_video_vsync_intr_done, ctl);
 	mdss_mdp_set_intr_callback(MDSS_MDP_IRQ_INTF_UNDER_RUN, ctl->intf_num,
 					mdss_mdp_video_underrun_intr_done, ctl);
+#if !defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL)
 	mdss_mdp_set_intr_callback(MDSS_MDP_IRQ_PING_PONG_COMP,
 					mixer->num,  mdss_mdp_video_pingpong_done, ctl);
+#endif
 
 	dst_bpp = pinfo->fbc.enabled ? (pinfo->fbc.target_bpp) : (pinfo->bpp);
 
@@ -1027,7 +1033,9 @@ int mdss_mdp_video_start(struct mdss_mdp_ctl *ctl)
 	ctl->add_vsync_handler = mdss_mdp_video_add_vsync_handler;
 	ctl->remove_vsync_handler = mdss_mdp_video_remove_vsync_handler;
 	ctl->config_fps_fnc = mdss_mdp_video_config_fps;
+#if !defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL)
 	ctl->wait_video_pingpong = mdss_mdp_video_wait4pingpong;
+#endif
 
 	return 0;
 }

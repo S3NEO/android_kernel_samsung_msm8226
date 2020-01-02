@@ -2760,10 +2760,12 @@ int mdss_mdp_display_commit(struct mdss_mdp_ctl *ctl, void *arg)
 	  		mutex_lock(&mdp5_data->list_lock);
 			if (csc_change == 1) {
 		  			struct mdss_mdp_pipe *pipe, *next;
+#if !defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL)
 					if (ctl->wait_video_pingpong) {
 							mdss_mdp_irq_enable(MDSS_MDP_IRQ_PING_PONG_COMP, ctl->num);
 			  				ctl->wait_video_pingpong(ctl, NULL);
 					}
+#endif
 					list_for_each_entry_safe(pipe, next, &mdp5_data->pipes_used, list) {
 		  				if (pipe->type == MDSS_MDP_PIPE_TYPE_VIG) {
 		  					pr_info(" mdss_mdp_csc_setup start\n");
