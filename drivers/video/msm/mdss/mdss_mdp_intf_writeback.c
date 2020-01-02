@@ -569,8 +569,9 @@ int mdss_mdp_writeback_start(struct mdss_mdp_ctl *ctl)
 	ctl->wait_fnc = mdss_mdp_wb_wait4comp;
 	ctl->add_vsync_handler = mdss_mdp_wb_add_vsync_handler;
 	ctl->remove_vsync_handler = mdss_mdp_wb_remove_vsync_handler;
+#if !defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL)
 	ctl->wait_video_pingpong = NULL;
-	
+#endif
 	return ret;
 }
 
