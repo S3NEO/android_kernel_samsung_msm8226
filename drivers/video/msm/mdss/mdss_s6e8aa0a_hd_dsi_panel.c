@@ -1469,6 +1469,8 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 	int i,j;
 #endif
 
+	printk("CALL mdss_dsi_panel_bl_ctrl backlight = %d\n", bl_level);
+
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		return;
@@ -1528,6 +1530,13 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 #endif
 #endif
 	}
+
+#if !defined(CONFIG_MACH_S3VE3G_EUR)
+	if( msd.mfd->panel_power_on == false){
+		pr_err("%s: panel power off no bl ctrl\n", __func__);
+		return;
+	}
+#endif
 
 #if defined(CONFIG_ESD_ERR_FG_RECOVERY)
 	if (err_fg_working) {
@@ -1606,10 +1615,10 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 
 	if (ctrl->on_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
-
-#if defined(CONFIG_MACH_S3VE3G_EUR)
-	if(bl_first_update== 0)
+#if defined(CONFIG_MACH_S3VE3G_EUR)	
+	if(bl_first_update== 0){
 		pr_err("to maintain ddefault brightness \n");
+	}
 	else
 		mdss_dsi_panel_bl_ctrl(pdata,msd.mfd->bl_previous);
 #endif
@@ -2160,7 +2169,7 @@ static ssize_t mipi_samsung_disp_acl_show(struct device *dev,
 {
 	int rc;
 
-	rc = snprintf((char *)buf, PAGE_SIZE, "%d\n", msd.dstat.acl_on);
+	rc = sprintf((char *)buf, "%d\n", msd.dstat.acl_on);
 	printk("acl status: %d\n", *buf);
 
 	return rc;
@@ -2281,8 +2290,7 @@ static ssize_t mdss_s6e8aa0a_auto_brightness_show(struct device *dev,
 {
 	int rc;
 
-	rc = snprintf(buf, PAGE_SIZE, "%d\n",
-					msd.dstat.auto_brightness);
+	rc = sprintf(buf, "%d\n", msd.dstat.auto_brightness);
 	pr_info("%s : auto_brightness : %d\n", __func__, msd.dstat.auto_brightness);
 
 	return rc;
