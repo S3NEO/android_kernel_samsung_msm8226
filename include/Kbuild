@@ -10,4 +10,10 @@ header-y += video/
 header-y += drm/
 header-y += xen/
 header-y += scsi/
+ifeq ($(CONFIG_SEC_MATISSE_PROJECT),y)
+header-y += media_tab4/
+else ifeq ($(CONFIG_SEC_MILLET_PROJECT),y)
+header-y += media_tab4/
+else
 header-y += media/
+endif

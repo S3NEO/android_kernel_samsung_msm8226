@@ -106,7 +106,16 @@ comment "Multimedia drivers"
 source "drivers/media/common/Kconfig"
 source "drivers/media/rc/Kconfig"
 
+
+if SEC_MATISSE_PROJECT
+source "drivers/media/platform_tab4/Kconfig"
+endif # SEC_MATISSE_PROJECT
+if SEC_MILLET_PROJECT
+source "drivers/media/platform_tab4/Kconfig"
+endif # SEC_MILLET_PROJECT
+if MACH_S3VE3G_EUR
 source "drivers/media/platform/Kconfig"
+endif # MACH_S3VE3G_EUR
 
 #
 # Tuner drivers for DVB and V4L

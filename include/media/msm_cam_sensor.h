@@ -10,6 +10,7 @@
 
 #define I2C_SEQ_REG_SETTING_MAX   5
 #define I2C_SEQ_REG_DATA_MAX      256
+#define I2C_REG_DATA_MAX         (8*1024)
 #define MAX_CID                   16
 
 #define MSM_SENSOR_MCLK_8HZ   8000000
@@ -447,6 +448,9 @@ enum camerab_mode_t {
 
 struct sensorb_cfg_data {
 	int cfgtype;
+#if defined(CONFIG_S5K4ECGX) || defined(CONFIG_SR030PC50) || defined(CONFIG_SR352) || defined(CONFIG_SR200PC20) || defined(CONFIG_SR130PC20)
+    int flicker_type;
+#endif
 	union {
 		struct msm_sensor_info_t      sensor_info;
 		void                         *setting;
@@ -510,7 +514,7 @@ struct msm_eeprom_cfg_data {
 	enum eeprom_cfg_type_t cfgtype;
 	uint8_t is_supported;
 	union {
-		char eeprom_name[MAX_SENSOR_NAME];
+		char eeprom_name[MAX_EEPROM_NAME];
 		struct eeprom_get_t get_data;
 		struct eeprom_read_t read_data;
 		struct eeprom_write_t write_data;
@@ -720,6 +724,11 @@ typedef struct
 	unsigned short shutterspeed;
 	unsigned short isFlashOn;
 } exif_data_t;
+
+enum msm_cam_flicker_type {
+	MSM_CAM_FLICKER_50HZ,
+	MSM_CAM_FLICKER_60HZ,
+};
 
 enum sensor_af_e {
 	SENSOR_AF_CANCEL = 1,

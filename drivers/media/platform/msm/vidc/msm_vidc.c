@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -223,24 +223,28 @@ struct buffer_info *get_registered_buf(struct msm_vidc_inst *inst,
 	struct buffer_info *temp;
 	struct buffer_info *ret = NULL;
 	int i;
-	struct list_head *list = &inst->registered_bufs;
 	int fd = b->m.planes[idx].reserved[0];
 	u32 buff_off = b->m.planes[idx].reserved[1];
 	u32 size = b->m.planes[idx].length;
 	u32 device_addr = b->m.planes[idx].m.userptr;
 
-	if (!list || fd < 0 || !plane) {
+	if (fd < 0 || !plane) {
 		dprintk(VIDC_ERR, "Invalid input\n");
 		goto err_invalid_input;
 	}
+	
+	WARN(!mutex_is_locked(&inst->registeredbufs.lock), 
+	  "Registered buf lock is not acquired for %s", __func__);
 
 	*plane = 0;
-	mutex_lock(&inst->lock);
-	list_for_each_entry(temp, list, list) {
+	list_for_each_entry(temp, &inst->registeredbufs.list, list) {
 		for (i = 0; (i < temp->num_planes)
 			&& (i < VIDEO_MAX_PLANES); i++) {
+			bool ion_hndl_matches =
+				msm_smem_compare_buffers(inst->mem_client, fd,
+				temp->handle[i]->smem_priv);
 			if (temp &&
-				((fd == temp->fd[i]) ||
+				(ion_hndl_matches ||
 				(device_addr == temp->device_addr[i])) &&
 				(CONTAINS(temp->buff_off[i],
 				temp->size[i], buff_off)
@@ -259,31 +263,30 @@ struct buffer_info *get_registered_buf(struct msm_vidc_inst *inst,
 		if (ret)
 			break;
 	}
-	mutex_unlock(&inst->lock);
-err_invalid_input:
+
+	err_invalid_input:
 	return ret;
 }
 
-struct msm_smem *get_same_fd_buffer(struct msm_vidc_inst *inst, 
-			struct list_head *list, int fd)
+
+static struct msm_smem *get_same_fd_buffer(struct msm_vidc_list *buf_list, int fd)
 {
 	struct buffer_info *temp;
-	struct msm_smem *same_fd_handle = NULL;  
+	struct msm_smem *same_fd_handle = NULL;
 
 	int i;
 	if (fd == 0)
 		return NULL;
 
-	if (!list || fd < 0) {
+	if (!buf_list || fd < 0) {
 		dprintk(VIDC_ERR, "Invalid input\n");
 		goto err_invalid_input;
 	}
-
-	mutex_lock(&inst->lock);
-	list_for_each_entry(temp, list, list) {
+	mutex_lock(&buf_list->lock);
+	list_for_each_entry(temp, &buf_list->list, list) {
 		for (i = 0; (i < temp->num_planes)
 			&& (i < VIDEO_MAX_PLANES); i++) {
-			if (temp && (temp->fd[i] == fd) &&		
+			if (temp && (temp->fd[i] == fd) &&
 				temp->handle[i] && temp->mapped[i])  {
 				temp->same_fd_ref[i]++;
 				dprintk(VIDC_INFO,
@@ -292,29 +295,28 @@ struct msm_smem *get_same_fd_buffer(struct msm_vidc_inst *inst,
 				break;
 			}
 		}
-		if (same_fd_handle) 
+		if (same_fd_handle)
 			break;
 	}
-	mutex_unlock(&inst->lock);
-err_invalid_input:
+	mutex_unlock(&buf_list->lock);
+	err_invalid_input:
 	return same_fd_handle;
 }
 
-struct buffer_info *device_to_uvaddr(struct msm_vidc_inst *inst,
-				struct list_head *list, u32 device_addr)
+struct buffer_info *device_to_uvaddr(struct msm_vidc_list *buf_list,
+				u32 device_addr)
 {
 	struct buffer_info *temp = NULL;
-	struct buffer_info *dummy = NULL;
 	int found = 0;
 	int i;
-	if (!list || !device_addr || !inst) {
+	if (!buf_list || !device_addr) {
 		dprintk(VIDC_ERR,
-			"Invalid input- list: %p device_addr: %u inst: %p\n",
-			list, device_addr, inst);
+			"Invalid input- device_addr: %u buf_list: %pK\n",
+			device_addr, buf_list);			
 		goto err_invalid_input;
 	}
-	mutex_lock(&inst->lock);
-	list_for_each_entry_safe(temp, dummy, list, list) {
+	mutex_lock(&buf_list->lock);	
+	list_for_each_entry(temp, &buf_list->list, list) {	
 		for (i = 0; (i < temp->num_planes)
 			&& (i < VIDEO_MAX_PLANES); i++) {
 			if (temp && !temp->inactive &&
@@ -328,8 +330,8 @@ struct buffer_info *device_to_uvaddr(struct msm_vidc_inst *inst,
 		if (found)
 			break;
 	}
-	mutex_unlock(&inst->lock);
-err_invalid_input:
+	mutex_unlock(&buf_list->lock);
+	err_invalid_input:
 	return temp;
 }
 
@@ -444,6 +446,9 @@ int map_and_register_buf(struct msm_vidc_inst *inst, struct v4l2_buffer *b)
 	int plane = 0;
 	int i = 0, rc = 0;
 	struct msm_smem *same_fd_handle = NULL;
+	bool check_same_fd_handle = !is_dynamic_output_buffer_mode(b, inst) &&
+		!(inst->session_type == MSM_VIDC_ENCODER &&
+			b->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
 
 	if (!b || !inst) {
 		dprintk(VIDC_ERR, "%s: invalid input\n", __func__);
@@ -463,7 +468,7 @@ int map_and_register_buf(struct msm_vidc_inst *inst, struct v4l2_buffer *b)
 		goto exit;
 	}
 
-	dprintk(VIDC_DBG, "[MAP] Create binfo = %p fd = %d type = %d\n",
+	dprintk(VIDC_DBG, "[MAP] Create binfo = %pK fd = %d type = %d\n",
 			binfo, b->m.planes[0].reserved[0], b->type);
 
 	for (i = 0; i < b->length; ++i) {
@@ -472,7 +477,7 @@ int map_and_register_buf(struct msm_vidc_inst *inst, struct v4l2_buffer *b)
 			!b->m.planes[i].length) {
 			continue;
 		}
-		mutex_lock(&inst->sync_lock);
+		mutex_lock(&inst->registeredbufs.lock);
 		temp = get_registered_buf(inst, b, i, &plane);
 		if (temp && !is_dynamic_output_buffer_mode(b, inst)) {
 			dprintk(VIDC_DBG,
@@ -497,18 +502,18 @@ int map_and_register_buf(struct msm_vidc_inst *inst, struct v4l2_buffer *b)
 				rc = -EEXIST;
 			}
 		}
-		mutex_unlock(&inst->sync_lock);
+		mutex_unlock(&inst->registeredbufs.lock);
 		if (rc < 0)
 			goto exit;
 
-		same_fd_handle = get_same_fd_buffer(inst,	   
-					&inst->registered_bufs, 				 
-					b->m.planes[i].reserved[0]);			 
+		if (check_same_fd_handle)
+			same_fd_handle = get_same_fd_buffer(&inst->registeredbufs,
+						b->m.planes[i].reserved[0]);
 
 		populate_buf_info(binfo, b, i);
-		if (same_fd_handle) {	
+		if (same_fd_handle) {
 			binfo->device_addr[i] =
-			same_fd_handle->device_addr + binfo->buff_off[i]; 
+			same_fd_handle->device_addr + binfo->buff_off[i];
 			b->m.planes[i].m.userptr = binfo->device_addr[i];
 			binfo->mapped[i] = false;
 			binfo->handle[i] = same_fd_handle;
@@ -539,14 +544,14 @@ int map_and_register_buf(struct msm_vidc_inst *inst, struct v4l2_buffer *b)
 				goto exit;
 		}
 		dprintk(VIDC_DBG,
-			"%s: [MAP] binfo = %p, handle[%d] = %p, device_addr = 0x%x, fd = %d, offset = %d, mapped = %d\n",
+			"%s: [MAP] binfo = %pK, handle[%d] = %pK, device_addr = 0x%x, fd = %d, offset = %d, mapped = %d\n",
 			__func__, binfo, i, binfo->handle[i],
 			binfo->device_addr[i], binfo->fd[i],
 			binfo->buff_off[i], binfo->mapped[i]);
 	}
-	mutex_lock(&inst->lock);
-	list_add_tail(&binfo->list, &inst->registered_bufs);
-	mutex_unlock(&inst->lock);
+	mutex_lock(&inst->registeredbufs.lock);
+	list_add_tail(&binfo->list, &inst->registeredbufs.list);
+	mutex_unlock(&inst->registeredbufs.lock);
 	return 0;
 exit:
 	kfree(binfo);
@@ -557,23 +562,22 @@ int unmap_and_deregister_buf(struct msm_vidc_inst *inst,
 {
 	int i = 0;
 	struct buffer_info *temp = NULL;
-	struct buffer_info *dummy = NULL;
-	struct list_head *list;
 	bool found = false, keep_node = false;
 
 	if (!inst || !binfo) {
-		dprintk(VIDC_ERR, "%s invalid param: %p %p\n",
+		dprintk(VIDC_ERR, "%s invalid param: %pK %pK\n",
 			__func__, inst, binfo);
 		return -EINVAL;
 	}
 
-	mutex_lock(&inst->lock);
-	list = &inst->registered_bufs;
+	WARN(!mutex_is_locked(&inst->registeredbufs.lock),
+		"Registered buf lock is not acquired for %s", __func__);	
+		
 	/*
 	* Make sure the buffer to be unmapped and deleted
 	* from the registered list is present in the list.
 	*/
-	list_for_each_entry_safe(temp, dummy, list, list) {
+	list_for_each_entry(temp, &inst->registeredbufs.list, list) {
 		if (temp == binfo) {
 			found = true;
 			break;
@@ -591,7 +595,7 @@ int unmap_and_deregister_buf(struct msm_vidc_inst *inst,
 
 	for (i = 0; i < temp->num_planes; i++) {
 		dprintk(VIDC_DBG,
-			"%s: [UNMAP] binfo = %p, handle[%d] = %p, device_addr = 0x%x, fd = %d, offset = %d, mapped = %d\n",
+			"%s: [UNMAP] binfo = %pK, handle[%d] = %pK, device_addr = 0x%x, fd = %d, offset = %d, mapped = %d\n",
 			__func__, temp, i, temp->handle[i],
 			temp->device_addr[i], temp->fd[i],
 			temp->buff_off[i], temp->mapped[i]);
@@ -623,15 +627,14 @@ int unmap_and_deregister_buf(struct msm_vidc_inst *inst,
 		}
 	}
 	if (!keep_node) {
-		dprintk(VIDC_DBG, "[UNMAP] AND-FREED binfo: %p\n", temp);
+		dprintk(VIDC_DBG, "[UNMAP] AND-FREED binfo: %pK\n", temp);
 		list_del(&temp->list);
 		kfree(temp);
 	} else {
 		temp->inactive = true;
-		dprintk(VIDC_DBG, "[UNMAP] NOT-FREED binfo: %p\n", temp);
+		dprintk(VIDC_DBG, "[UNMAP] NOT-FREED binfo: %pK\n", temp);
 	}
 exit:
-	mutex_unlock(&inst->lock);
 	return 0;
 }
 
@@ -643,7 +646,7 @@ int qbuf_dynamic_buf(struct msm_vidc_inst *inst,
 	struct v4l2_plane plane[VIDEO_MAX_PLANES] = { {0} };
 
 	if (!binfo) {
-		dprintk(VIDC_ERR, "%s invalid param: %p\n", __func__, binfo);
+		dprintk(VIDC_ERR, "%s invalid param: %pK\n", __func__, binfo);
 		return -EINVAL;
 	}
 	dprintk(VIDC_DBG, "%s fd[0] = %d\n", __func__, binfo->fd[0]);
@@ -666,7 +669,7 @@ int output_buffer_cache_invalidate(struct msm_vidc_inst *inst,
 	int rc = 0;
 
 	if (!inst) {
-		dprintk(VIDC_ERR, "%s: invalid inst: %p\n", __func__, inst);
+		dprintk(VIDC_ERR, "%s: invalid inst: %pK\n", __func__, inst);
 		return -EINVAL;
 	}
 
@@ -674,7 +677,7 @@ int output_buffer_cache_invalidate(struct msm_vidc_inst *inst,
 		return 0;
 
 	if (!binfo) {
-		dprintk(VIDC_ERR, "%s: invalid buffer info: %p\n",
+		dprintk(VIDC_ERR, "%s: invalid buffer info: %pK\n",
 			__func__, inst);
 		return -EINVAL;
 	}
@@ -700,11 +703,23 @@ int output_buffer_cache_invalidate(struct msm_vidc_inst *inst,
 	return 0;
 }
 
+static bool valid_v4l2_buffer(struct v4l2_buffer *b,
+		struct msm_vidc_inst *inst) {
+	enum vidc_ports port =
+		!V4L2_TYPE_IS_MULTIPLANAR(b->type) ? MAX_PORT_NUM :
+		b->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE ? CAPTURE_PORT :
+		b->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE ? OUTPUT_PORT :
+								MAX_PORT_NUM;
+
+	return port != MAX_PORT_NUM &&
+		inst->fmts[port]->num_planes == b->length;
+}
+
 int msm_vidc_prepare_buf(void *instance, struct v4l2_buffer *b)
 {
 	struct msm_vidc_inst *inst = instance;
 
-	if (!inst || !b)
+	if (!inst || !b || !valid_v4l2_buffer(b, inst))
 		return -EINVAL;
 
 	if (is_dynamic_output_buffer_mode(b, inst)) {
@@ -729,40 +744,39 @@ int msm_vidc_prepare_buf(void *instance, struct v4l2_buffer *b)
 
 int msm_vidc_release_buffers(void *instance, int buffer_type)
 {
-	struct list_head *ptr, *next;
 	struct msm_vidc_inst *inst = instance;
-	struct buffer_info *bi;
+	struct buffer_info *bi, *dummy;
 	struct v4l2_buffer buffer_info;
 	struct v4l2_plane plane[VIDEO_MAX_PLANES];
 	int i, rc = 0;
 
 	if (!inst)
 		return -EINVAL;
-	if (!inst->in_reconfig) {																  
-		rc = msm_comm_try_state(inst, MSM_VIDC_RELEASE_RESOURCES_DONE); 						
-		if (rc) {																				
-			dprintk(VIDC_ERR,																	  
-					"Failed to move inst: %p to release res done\n",								  
-					inst);																			  
-		}																						
-	}																						  
-																							  
-	/*																						  
-	* In dynamic buffer mode, driver needs to release resources,							  
-	* but not call release buffers on firmware, as the buffers								  
-	* were never registered with firmware.													  
-	*/																						  
-	if ((buffer_type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) &&								  
-		(inst->buffer_mode_set[CAPTURE_PORT] == 												
-				HAL_BUFFER_MODE_DYNAMIC)) { 														
-		goto free_and_unmap;																	
-	}																						  
-																							  
 
-	list_for_each_safe(ptr, next, &inst->registered_bufs) {
+	if (!inst->in_reconfig) {
+		rc = msm_comm_try_state(inst, MSM_VIDC_RELEASE_RESOURCES_DONE);
+		if (rc) {
+			dprintk(VIDC_ERR,
+					"Failed to move inst: %pK to release res done\n",
+					inst);
+		}
+	}
+
+	/*
+	* In dynamic buffer mode, driver needs to release resources,
+	* but not call release buffers on firmware, as the buffers
+	* were never registered with firmware.
+	*/
+	if ((buffer_type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) &&
+		(inst->buffer_mode_set[CAPTURE_PORT] ==
+				HAL_BUFFER_MODE_DYNAMIC)) {
+		goto free_and_unmap;
+	}
+
+	mutex_lock(&inst->registeredbufs.lock);
+	list_for_each_entry(bi, &inst->registeredbufs.list, list) {
 		bool release_buf = false;
-		mutex_lock(&inst->lock);
-		bi = list_entry(ptr, struct buffer_info, list);
+
 		if (bi->type == buffer_type) {
 			buffer_info.type = bi->type;
 			for (i = 0; (i < bi->num_planes)
@@ -781,10 +795,8 @@ int msm_vidc_release_buffers(void *instance, int buffer_type)
 			buffer_info.length = bi->num_planes;
 			release_buf = true;
 		}
-		mutex_unlock(&inst->lock);
 		if (!release_buf)
 			continue;
-		release_buf = false;
 		if (inst->session_type == MSM_VIDC_DECODER)
 			rc = msm_vdec_release_buf(instance,
 				&buffer_info);
@@ -798,28 +810,30 @@ int msm_vidc_release_buffers(void *instance, int buffer_type)
 				buffer_info.m.planes[0].reserved[1],
 				buffer_info.m.planes[0].length);
 	}
+	
+	mutex_unlock(&inst->registeredbufs.lock);
 
-free_and_unmap:	
-	mutex_lock(&inst->lock);
-	list_for_each_safe(ptr, next, &inst->registered_bufs) {
-		bi = list_entry(ptr, struct buffer_info, list);
+	free_and_unmap:
+
+	mutex_lock(&inst->registeredbufs.lock);
+	list_for_each_entry_safe(bi, dummy, &inst->registeredbufs.list, list) {
 		if (bi->type == buffer_type) {
 			list_del(&bi->list);
 			for (i = 0; i < bi->num_planes; i++) {
 				if (bi->handle[i] && bi->mapped[i]) {
 					dprintk(VIDC_DBG,
-						"%s: [UNMAP] binfo = %p, handle[%d] = %p, device_addr = 0x%x, fd = %d, offset = %d, mapped = %d\n",
+						"%s: [UNMAP] binfo = %pK, handle[%d] = %pK, device_addr = 0x%x, fd = %d, offset = %d, mapped = %d\n",
 						__func__, bi, i, bi->handle[i],
 						bi->device_addr[i], bi->fd[i],
 						bi->buff_off[i], bi->mapped[i]);
 					msm_comm_smem_free(inst,
 							bi->handle[i]);
 				}
-			}			
+			}
 			kfree(bi);
 		}
 	}
-	mutex_unlock(&inst->lock);
+	mutex_unlock(&inst->registeredbufs.lock);
 	return rc;
 }
 
@@ -855,14 +869,8 @@ int msm_vidc_qbuf(void *instance, struct v4l2_buffer *b)
 	int rc = 0;
 	int i;
 
-	if (!inst || !b)
+	if (!inst || !b || !valid_v4l2_buffer(b, inst))
 		return -EINVAL;
-
-	if (b->length > VIDEO_MAX_PLANES) {
-		dprintk(VIDC_ERR, "num planes exceeds max: %d\n",
-			b->length);
-		return -EINVAL;
-	}
 
 	if (is_dynamic_output_buffer_mode(b, inst)) {
 		if (b->m.planes[0].reserved[0])
@@ -884,8 +892,9 @@ int msm_vidc_qbuf(void *instance, struct v4l2_buffer *b)
 			b->m.planes[i].m.userptr = 0;
 			continue;
 		}
-
+		mutex_lock(&inst->registeredbufs.lock);
 		binfo = get_registered_buf(inst, b, i, &plane);
+		mutex_unlock(&inst->registeredbufs.lock);
 		if (!binfo) {
 			dprintk(VIDC_ERR,
 				"This buffer is not registered: %d, %d, %d\n",
@@ -937,14 +946,8 @@ int msm_vidc_dqbuf(void *instance, struct v4l2_buffer *b)
 	struct buffer_info *buffer_info = NULL;
 	int i = 0, rc = 0;
 
-	if (!inst || !b)
+	if (!inst || !b || !valid_v4l2_buffer(b, inst))
 		return -EINVAL;
-
-	if (b->length > VIDEO_MAX_PLANES) {
-		dprintk(VIDC_ERR, "num planes exceed maximum: %d\n",
-			b->length);
-		return -EINVAL;
-	}
 
 	if (inst->session_type == MSM_VIDC_DECODER)
 		rc = msm_vdec_dqbuf(instance, b);
@@ -958,13 +961,11 @@ int msm_vidc_dqbuf(void *instance, struct v4l2_buffer *b)
 		if (!inst->map_output_buffer)
 			continue;
 		if (EXTRADATA_IDX(b->length) &&
-			(i == EXTRADATA_IDX(b->length)) &&
-			!b->m.planes[i].m.userptr) {
+			i == EXTRADATA_IDX(b->length)) {
 			continue;
 		}
-		buffer_info = device_to_uvaddr(inst,
-			&inst->registered_bufs,
-			b->m.planes[i].m.userptr);
+		buffer_info = device_to_uvaddr(&inst->registeredbufs,
+						b->m.planes[i].m.userptr);
 
 		if (!buffer_info) {
 			dprintk(VIDC_ERR,
@@ -990,12 +991,12 @@ int msm_vidc_dqbuf(void *instance, struct v4l2_buffer *b)
 	}
 
 	if (is_dynamic_output_buffer_mode(b, inst)) {
-		mutex_lock(&inst->lock);
 		buffer_info->dequeued = true;
-		mutex_unlock(&inst->lock);
 		dprintk(VIDC_DBG, "[DEQUEUED]: fd[0] = %d\n",
 			buffer_info->fd[0]);
+		mutex_lock(&inst->registeredbufs.lock);
 		rc = unmap_and_deregister_buf(inst, buffer_info);
+		mutex_unlock(&inst->registeredbufs.lock);
 	} else
 		rc = output_buffer_cache_invalidate(inst, buffer_info);
 
@@ -1037,7 +1038,7 @@ int msm_vidc_enum_framesizes(void *instance, struct v4l2_frmsizeenum *fsize)
 	struct msm_vidc_core_capability *capability = NULL;
 
 	if (!inst || !fsize) {
-		dprintk(VIDC_ERR, "%s: invalid parameter: %p %p\n",
+		dprintk(VIDC_ERR, "%s: invalid parameter: %pK %pK\n",
 				__func__, inst, fsize);
 		return -EINVAL;
 	}
@@ -1098,7 +1099,7 @@ void *msm_vidc_smem_get_client(void *instance)
 	struct msm_vidc_inst *inst = instance;
 
 	if (!inst || !inst->mem_client) {
-		dprintk(VIDC_ERR, "%s: invalid instance or client = %p %p\n",
+		dprintk(VIDC_ERR, "%s: invalid instance or client = %pK %pK\n",
 				__func__, inst, inst->mem_client);
 		return NULL;
 	}
@@ -1149,8 +1150,6 @@ static int setup_event_queue(void *inst,
 {
 	int rc = 0;
 	struct msm_vidc_inst *vidc_inst = (struct msm_vidc_inst *)inst;
-	spin_lock_init(&pvdev->fh_lock);
-	INIT_LIST_HEAD(&pvdev->fh_list);
 
 	v4l2_fh_init(&vidc_inst->event_handler, pvdev);
 	v4l2_fh_add(&vidc_inst->event_handler);
@@ -1221,19 +1220,19 @@ void *msm_vidc_open(int core_id, int session_type)
 		goto err_invalid_core;
 	}
 
-	pr_info(VIDC_DBG_TAG "Opening video instance: %p, %d\n",
+	pr_info(VIDC_DBG_TAG "Opening video instance: %pK, %d\n",
 		VIDC_INFO, inst, session_type);
 	mutex_init(&inst->sync_lock);
 	mutex_init(&inst->bufq[CAPTURE_PORT].lock);
 	mutex_init(&inst->bufq[OUTPUT_PORT].lock);
 	mutex_init(&inst->lock);
 	inst->session_type = session_type;
-	INIT_LIST_HEAD(&inst->pendingq);
-	INIT_LIST_HEAD(&inst->internalbufs);
-	INIT_LIST_HEAD(&inst->persistbufs);
-	INIT_LIST_HEAD(&inst->ctrl_clusters);
-	INIT_LIST_HEAD(&inst->registered_bufs);
-	INIT_LIST_HEAD(&inst->outputbufs);
+	INIT_MSM_VIDC_LIST(&inst->pendingq);
+	INIT_MSM_VIDC_LIST(&inst->internalbufs);
+	INIT_MSM_VIDC_LIST(&inst->persistbufs);
+	INIT_MSM_VIDC_LIST(&inst->outputbufs);
+	INIT_MSM_VIDC_LIST(&inst->registeredbufs);
+	
 	init_waitqueue_head(&inst->kernel_event_queue);
 	inst->state = MSM_VIDC_CORE_UNINIT_DONE;
 	inst->core = core;
@@ -1271,6 +1270,11 @@ void *msm_vidc_open(int core_id, int session_type)
 			"Failed to initialize vb2 queue on capture port\n");
 		goto fail_bufq_output;
 	}
+
+	mutex_lock(&core->lock);
+	list_add_tail(&inst->list, &core->instances);
+	mutex_unlock(&core->lock);
+
 	rc = msm_comm_try_state(inst, MSM_VIDC_CORE_INIT);
 	if (rc) {
 		dprintk(VIDC_ERR,
@@ -1282,12 +1286,14 @@ void *msm_vidc_open(int core_id, int session_type)
 
 	setup_event_queue(inst, &core->vdev[session_type].vdev);
 
-	mutex_lock(&core->sync_lock);
-	list_add_tail(&inst->list, &core->instances);
-	mutex_unlock(&core->sync_lock);
 	return inst;
 fail_init:
 	vb2_queue_release(&inst->bufq[OUTPUT_PORT].vb2_bufq);
+
+	mutex_lock(&core->lock);
+	list_del(&inst->list);
+	mutex_unlock(&core->lock);
+
 fail_bufq_output:
 	vb2_queue_release(&inst->bufq[CAPTURE_PORT].vb2_bufq);
 fail_bufq_capture:
@@ -1299,54 +1305,40 @@ fail_bufq_capture:
 fail_mem_client:
 	kfree(inst);
 	inst = NULL;
-err_invalid_core:
+	err_invalid_core:
 	return inst;
 }
 
 static void cleanup_instance(struct msm_vidc_inst *inst)
 {
-	struct list_head *ptr, *next;
-	struct vb2_buf_entry *entry;
+	struct vb2_buf_entry *entry, *dummy;
 	if (inst) {
-		mutex_lock(&inst->lock);
-		if (!list_empty(&inst->pendingq)) {
-			list_for_each_safe(ptr, next, &inst->pendingq) {
-				entry = list_entry(ptr, struct vb2_buf_entry,
-						list);
-				list_del(&entry->list);
-				kfree(entry);
-			}
+		mutex_lock(&inst->pendingq.lock);
+		list_for_each_entry_safe(entry, dummy, &inst->pendingq.list,
+				list) {
+			list_del(&entry->list);
+			kfree(entry);
 		}
-		if (!list_empty(&inst->internalbufs)) {
-			mutex_unlock(&inst->lock);
-			if (msm_comm_release_scratch_buffers(inst))
-				dprintk(VIDC_ERR,
-					"Failed to release scratch buffers\n");
+		mutex_unlock(&inst->pendingq.lock);
 
-			mutex_lock(&inst->lock);
+		if (msm_comm_release_scratch_buffers(inst)) {
+			dprintk(VIDC_ERR,
+				"Failed to release scratch buffers\n");
 		}
-		if (!list_empty(&inst->persistbufs)) {
-			mutex_unlock(&inst->lock);
-			if (msm_comm_release_persist_buffers(inst))
-				dprintk(VIDC_ERR,
-					"Failed to release persist buffers\n");
 
-			mutex_lock(&inst->lock);
+		if (msm_comm_release_persist_buffers(inst)) {
+			dprintk(VIDC_ERR,
+				"Failed to release persist buffers\n");
 		}
-		if (!list_empty(&inst->outputbufs)) {
-			mutex_unlock(&inst->lock);
-			if (msm_comm_release_output_buffers(inst))
-				dprintk(VIDC_ERR,
-					"Failed to release output buffers\n");
 
-			mutex_lock(&inst->lock);
+		if (msm_comm_release_output_buffers(inst)) {
+			dprintk(VIDC_ERR,
+				"Failed to release output buffers\n");
 		}
-		if (inst->extradata_handle) {
-			mutex_unlock(&inst->lock);
+
+		if (inst->extradata_handle)
 			msm_comm_smem_free(inst, inst->extradata_handle);
-			mutex_lock(&inst->lock);
-		}
-		mutex_unlock(&inst->lock);
+
 		debugfs_remove_recursive(inst->debugfs_root);
 	}
 }
@@ -1354,18 +1346,18 @@ static void cleanup_instance(struct msm_vidc_inst *inst)
 int msm_vidc_close(void *instance)
 {
 	struct msm_vidc_inst *inst = instance;
-	struct msm_vidc_inst *temp;
+	struct msm_vidc_inst *temp,*inst_dummy;
 	struct msm_vidc_core *core;
-	struct list_head *ptr, *next;
-	struct buffer_info *bi;
+	struct buffer_info *bi,*dummy;
 	int rc = 0;
 	int i;
 
-	if (!inst)
+	if (!inst || !inst->core)
 		return -EINVAL;
 
-	list_for_each_safe(ptr, next, &inst->registered_bufs) {
-		bi = list_entry(ptr, struct buffer_info, list);
+	v4l2_fh_del(&inst->event_handler);
+	mutex_lock(&inst->registeredbufs.lock);
+	list_for_each_entry_safe(bi, dummy, &inst->registeredbufs.list, list) {
 		if (bi->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 			list_del(&bi->list);
 			for (i = 0; (i < bi->num_planes)
@@ -1376,20 +1368,24 @@ int msm_vidc_close(void *instance)
 			kfree(bi);
 		}
 	}
+	mutex_unlock(&inst->registeredbufs.lock);
 
 	core = inst->core;
-	mutex_lock(&core->sync_lock);
-	list_for_each_safe(ptr, next, &core->instances) {
-		temp = list_entry(ptr, struct msm_vidc_inst, list);
+
+	mutex_lock(&core->lock);
+	list_for_each_entry_safe(temp, inst_dummy, &core->instances, list) {
 		if (temp == inst)
 			list_del(&inst->list);
 	}
-	mutex_unlock(&core->sync_lock);
+	mutex_unlock(&core->lock);
 
 	if (inst->session_type == MSM_VIDC_DECODER)
 		msm_vdec_ctrl_deinit(inst);
 	else if (inst->session_type == MSM_VIDC_ENCODER)
 		msm_venc_ctrl_deinit(inst);
+
+	for (i = 0; i < MAX_PORT_NUM; i++)
+		vb2_queue_release(&inst->bufq[i].vb2_bufq);
 
 	cleanup_instance(inst);
 	if (inst->state != MSM_VIDC_CORE_INVALID &&
@@ -1401,12 +1397,16 @@ int msm_vidc_close(void *instance)
 		dprintk(VIDC_ERR,
 			"Failed to move video instance to uninit state\n");
 
-	for (i = 0; i < MAX_PORT_NUM; i++)
-		vb2_queue_release(&inst->bufq[i].vb2_bufq);
+	msm_comm_session_clean(inst);
 
 	msm_smem_delete_client(inst->mem_client);
-	pr_info(VIDC_DBG_TAG "Closed video instance: %p\n", VIDC_INFO, inst);
+	pr_info(VIDC_DBG_TAG "Closed video instance: %pK\n", VIDC_INFO, inst);
 	kfree(inst);
 
 	return 0;
+}
+
+int msm_vidc_suspend(int core_id)
+{
+	return msm_comm_suspend(core_id);
 }

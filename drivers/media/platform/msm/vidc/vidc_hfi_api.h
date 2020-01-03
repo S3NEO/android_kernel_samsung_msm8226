@@ -188,9 +188,10 @@ enum hal_property {
 	HAL_CONFIG_VENC_MARKLTRFRAME,
 	HAL_CONFIG_VENC_USELTRFRAME,
 	HAL_CONFIG_VENC_LTRPERIOD,
-	HAL_PARAM_VENC_HIER_P_NUM_FRAMES,
-	HAL_PARAM_VPE_COLOR_SPACE_CONVERSION,
+	HAL_CONFIG_VENC_HIER_P_NUM_FRAMES,
+	HAL_PARAM_VENC_HIER_P_MAX_ENH_LAYERS,
 	HAL_PARAM_VENC_ENABLE_INITIAL_QP,
+	HAL_PARAM_VPE_COLOR_SPACE_CONVERSION,
 };
 
 enum hal_domain {
@@ -897,6 +898,14 @@ struct vidc_seq_hdr {
 	u32 seq_hdr_len;
 };
 
+struct hal_fw_info {
+	char version[128];
+	int base_addr;
+	int register_base;
+	int register_size;
+	int irq;
+};
+
 enum hal_flush {
 	HAL_FLUSH_INPUT,
 	HAL_FLUSH_OUTPUT,
@@ -1104,14 +1113,6 @@ enum mem_type {
 	OCMEM_MEM = 0x2,
 };
 
-enum fw_info {
-	FW_BASE_ADDRESS,
-	FW_REGISTER_BASE,
-	FW_REGISTER_SIZE,
-	FW_IRQ,
-	FW_INFO_MAX,
-};
-
 enum dev_info {
 	DEV_CLOCK_COUNT,
 	DEV_CLOCK_ENABLED,
@@ -1165,20 +1166,18 @@ struct hfi_device {
 			enum session_type type, enum mem_type mtype);
 	int (*unvote_bus)(void *dev, enum session_type type,
 		enum mem_type mtype);
-	int (*unset_ocmem)(void *dev);
-	int (*alloc_ocmem)(void *dev, unsigned long size);
-	int (*free_ocmem)(void *dev);
 	int (*iommu_get_domain_partition)(void *dev, u32 flags, u32 buffer_type,
 			int *domain_num, int *partition_num);
 	int (*load_fw)(void *dev);
 	void (*unload_fw)(void *dev);
-	int (*get_fw_info)(void *dev, enum fw_info info);
+	int (*get_fw_info)(void *dev, struct hal_fw_info *fw_info);
 	int (*get_info) (void *dev, enum dev_info info);
 	int (*get_stride_scanline)(int color_fmt, int width,
 		int height,	int *stride, int *scanlines);
 	int (*session_clean)(void *sess);
 	int (*get_core_capabilities)(void);
 	int (*power_enable)(void *dev);
+	int (*suspend)(void *dev);
 };
 
 typedef void (*hfi_cmd_response_callback) (enum command_response cmd,

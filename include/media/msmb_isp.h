@@ -14,7 +14,9 @@
 #define ISP_META_CHANNEL_BIT  0x80000
 #define ISP_STATS_STREAM_BIT  0x80000000
 
+#if !defined(CONFIG_MACH_S3VE3G_EUR)
 #define MSM_VFE_REG_CFG_FRAME_ID_NOT_MATCH_ERROR	0xCACFC
+#endif
 enum ISP_START_PIXEL_PATTERN {
 	ISP_BAYER_RGRGRG,
 	ISP_BAYER_GRGRGR,
@@ -152,6 +154,7 @@ struct msm_vfe_axi_stream_release_cmd {
 enum msm_vfe_axi_stream_cmd {
 	STOP_STREAM,
 	START_STREAM,
+	STOP_IMMEDIATELY,
 };
 
 struct msm_vfe_axi_stream_cfg_cmd {
@@ -246,7 +249,9 @@ struct msm_vfe_cfg_cmd2 {
 	uint16_t num_cfg;
 	uint16_t cmd_len;
 	void __user *cfg_data;
+#if !defined(CONFIG_MACH_S3VE3G_EUR)
 	uint32_t frame_id;
+#endif
 	void __user *cfg_cmd;
 };
 

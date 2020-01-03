@@ -193,12 +193,19 @@ int32_t sr130pc20_set_white_balance(struct msm_sensor_ctrl_t *s_ctrl, int mode)
 	return rc;
 }
 
-int32_t sr130pc20_set_Init_reg(struct msm_sensor_ctrl_t *s_ctrl)
+#ifdef CONFIG_MACH_MILLETLTE_KOR
+int32_t sr130pc20_set_Init_reg(struct msm_sensor_ctrl_t *s_ctrl, int resolution)
 {
     if (sr130pc20_ctrl.prev_mode == CAMERA_MODE_INIT) {
         if (sr130pc20_ctrl.vtcall_mode == 1) {
-            SR130PC20_WRITE_LIST(sr130pc20_VT_Init_Reg);
-            CDBG("VT Init Settings");
+            if(resolution== MSM_SENSOR_RES_3) {
+                CDBG("CIF size VT Init Settings");
+                SR130PC20_WRITE_LIST(sr130pc20_CIF_VT_Init_Reg);
+            }
+            else {
+                CDBG("VT Init Settings");
+                SR130PC20_WRITE_LIST(sr130pc20_VT_Init_Reg);
+            }
         }else {
             SR130PC20_WRITE_LIST(sr130pc20_Init_Reg);
             CDBG("Init settings");
@@ -208,8 +215,31 @@ int32_t sr130pc20_set_Init_reg(struct msm_sensor_ctrl_t *s_ctrl)
     }
     return 0;
 }
+#else
+int32_t sr130pc20_set_Init_reg(struct msm_sensor_ctrl_t *s_ctrl, int flicker_type)
+{
+    if (sr130pc20_ctrl.prev_mode == CAMERA_MODE_INIT) {
+        if (sr130pc20_ctrl.vtcall_mode == 1) {
+            SR130PC20_WRITE_LIST(sr130pc20_VT_Init_Reg);
+            CDBG("VT Init Settings");
+        }else {
+            if (flicker_type == MSM_CAM_FLICKER_50HZ) {
+	        pr_err("%s : %d 50Hz init setting\n", __func__, __LINE__);
+                SR130PC20_WRITE_LIST(sr130pc20_Init_Reg);
+            } else {
+		pr_err("%s : %d 60Hz init setting\n", __func__,	__LINE__);
+		SR130PC20_WRITE_LIST(sr130pc20_Init_Reg_60hz);
+	    }
+            CDBG("Init settings");
+        }
+        SR130PC20_WRITE_LIST(sr130pc20_stop_stream);
+        CDBG("Stop Stream Settings");
+    }
+    return 0;
+}
+#endif
 
-int32_t sr130pc20_set_resolution(struct msm_sensor_ctrl_t *s_ctrl, int mode)
+int32_t sr130pc20_set_resolution(struct msm_sensor_ctrl_t *s_ctrl, int mode, int flicker_type)
 {
 	int32_t rc = 0;
 	CDBG("mode = %d", mode);
@@ -218,8 +248,13 @@ int32_t sr130pc20_set_resolution(struct msm_sensor_ctrl_t *s_ctrl, int mode)
 		rc = SR130PC20_WRITE_LIST(sr130pc20_Snapshot);
 		break;
 	default:
-		rc = SR130PC20_WRITE_LIST(sr130pc20_Preview);
-		pr_err("%s: Setting %d is sr130pc20_Preview\n", __func__, mode);
+		if (flicker_type == MSM_CAM_FLICKER_50HZ) {
+		    pr_err("%s : %d 50Hz Preview initial\n", __func__, __LINE__);
+		    rc = SR130PC20_WRITE_LIST(sr130pc20_Preview_for_initial_50hz);
+		} else {
+		    pr_err("%s : %d 60Hz Preview initial\n", __func__, __LINE__);
+		    rc = SR130PC20_WRITE_LIST(sr130pc20_Preview_for_initial_60hz);
+		}
 	}
 	return rc;
 }
@@ -348,9 +383,13 @@ int32_t sr130pc20_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 #endif
 		break;
 	case CFG_SET_RESOLUTION:
-		sr130pc20_set_Init_reg(s_ctrl);
 		resolution = *((int32_t  *)cdata->cfg.setting);
 		CDBG("CFG_SET_RESOLUTION  res = %d" , resolution);
+#ifdef CONFIG_MACH_MILLETLTE_KOR
+		sr130pc20_set_Init_reg(s_ctrl, resolution);
+#else
+		sr130pc20_set_Init_reg(s_ctrl, cdata->flicker_type);
+#endif
 		break;
 	case CFG_SET_STOP_STREAM:
 		CDBG(" CFG_SET_STOP_STREAM writing stop stream registers: sr130pc20_stop_stream");
@@ -366,7 +405,13 @@ int32_t sr130pc20_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		{
 			CDBG(" CFG_SET_START_STREAM: Preview");
 			if(sr130pc20_ctrl.prev_mode == CAMERA_MODE_RECORDING) {
+			    if (cdata->flicker_type == MSM_CAM_FLICKER_50HZ) {
+				pr_err("%s : %d 50Hz init setting\n", __func__, __LINE__);
 				SR130PC20_WRITE_LIST(sr130pc20_Init_Reg);
+	            	    } else {
+				pr_err("%s : %d 60Hz init setting\n", __func__,	__LINE__);
+				SR130PC20_WRITE_LIST(sr130pc20_Init_Reg_60hz);
+	           	    }
 				SR130PC20_WRITE_LIST(sr130pc20_stop_stream);
 			}
 			if(sr130pc20_ctrl.prev_mode != CAMERA_MODE_CAPTURE) {
@@ -374,7 +419,7 @@ int32_t sr130pc20_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 				sr130pc20_set_white_balance( s_ctrl, sr130pc20_ctrl.settings.wb);
 				sr130pc20_set_exposure_compensation( s_ctrl , sr130pc20_ctrl.settings.exposure );
 			}
-			sr130pc20_set_resolution(s_ctrl , resolution );
+			sr130pc20_set_resolution(s_ctrl , resolution , cdata->flicker_type);
 #if defined(CONFIG_SEC_MILLET_PROJECT) || defined(CONFIG_SEC_MATISSE_PROJECT) || defined (CONFIG_MACH_VICTOR3GDSDTV_LTN)
 			if(sr130pc20_ctrl.prev_mode == CAMERA_MODE_INIT) {
 				msleep(200);
@@ -384,13 +429,18 @@ int32_t sr130pc20_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		break;
 		case CAMERA_MODE_CAPTURE:
 		{
-			sr130pc20_set_resolution(s_ctrl , resolution );
+			sr130pc20_set_resolution(s_ctrl , resolution , cdata->flicker_type);
 			sr130pc20_set_exif(s_ctrl);
 		}
 		break;
 		case CAMERA_MODE_RECORDING:
 		{
-			SR130PC20_WRITE_LIST(sr130pc20_camcorder_mode);
+			//SR130PC20_WRITE_LIST(sr130pc20_camcorder_mode);
+			if (cdata->flicker_type == MSM_CAM_FLICKER_50HZ) {
+			   SR130PC20_WRITE_LIST(sr130pc20_camcorder_mode_50hz);
+			} else {
+			   SR130PC20_WRITE_LIST(sr130pc20_camcorder_mode_60hz);
+			}
 			sr130pc20_set_effect( s_ctrl , sr130pc20_ctrl.settings.effect);
 			sr130pc20_set_white_balance( s_ctrl, sr130pc20_ctrl.settings.wb);
 			sr130pc20_set_exposure_compensation( s_ctrl , sr130pc20_ctrl.settings.exposure );

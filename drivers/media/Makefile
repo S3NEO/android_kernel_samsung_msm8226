@@ -8,8 +8,14 @@ ifeq ($(CONFIG_MEDIA_CONTROLLER),y)
   obj-$(CONFIG_MEDIA_SUPPORT) += media.o
 endif
 
-obj-y += common/ platform/ rc/ video/
 
+ifeq ($(CONFIG_SEC_MATISSE_PROJECT),y)
+obj-y += common/ platform_tab4/ rc/ video/
+else ifeq ($(CONFIG_SEC_MILLET_PROJECT),y)
+obj-y += common/ platform_tab4/ rc/ video/
+else
+obj-y += common/ platform/ rc/ video/
+endif
 obj-$(CONFIG_VIDEO_DEV) += radio/
 obj-$(CONFIG_DVB_CORE)  += dvb/
 obj-$(CONFIG_TDMB)  += tdmb/

@@ -130,14 +130,14 @@ static inline int msm_jpeg_q_wait(struct msm_jpeg_q *q_p)
 	return rc;
 }
 
-static inline int msm_jpeg_q_wakeup(struct msm_jpeg_q *q_p)
+inline int msm_jpeg_q_wakeup(struct msm_jpeg_q *q_p)
 {
 	JPEG_DBG("%s:%d] %s\n", __func__, __LINE__, q_p->name);
 	wake_up(&q_p->wait);
 	return 0;
 }
 
-static inline int msm_jpeg_q_unblock(struct msm_jpeg_q *q_p)
+inline int msm_jpeg_q_unblock(struct msm_jpeg_q *q_p)
 {
 	JPEG_DBG("%s:%d] %s\n", __func__, __LINE__, q_p->name);
 	q_p->unblck = 1;
@@ -596,7 +596,7 @@ int __msm_jpeg_open(struct msm_jpeg_device *pgmn_dev)
 		return rc;
 	}
 
-	JPEG_DBG("%s:%d] platform resources - mem %p, base %p, irq %d\n",
+	JPEG_DBG("%s:%d] platform resources - mem %pK, base %pK, irq %d\n",
 		__func__, __LINE__,
 		pgmn_dev->mem, pgmn_dev->base, pgmn_dev->irq);
 	pgmn_dev->res_size = resource_size(pgmn_dev->mem);

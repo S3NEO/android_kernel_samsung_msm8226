@@ -35,6 +35,9 @@
 #define fh_to_private(__fh) \
 	container_of(__fh, struct camera_v4l2_private, fh)
 
+extern struct task_struct	*qdaemon_task;
+#define QDAEMON "mm-qcamera"
+
 struct camera_v4l2_private {
 	struct v4l2_fh fh;
 	unsigned int stream_id;
@@ -580,7 +583,7 @@ static int camera_v4l2_open(struct file *filep)
 	}
 
 	if (!atomic_read(&pvdev->opened)) {
-
+		pm_stay_awake(&pvdev->vdev->dev);
 		/* create a new session when first opened */
 		rc = msm_create_session(pvdev->vdev->num, pvdev->vdev);
 		if (rc < 0) {
@@ -597,8 +600,19 @@ static int camera_v4l2_open(struct file *filep)
 		camera_pack_event(filep, MSM_CAMERA_NEW_SESSION, 0, -1, &event);
 		rc = msm_post_event(&event, MSM_POST_EVT_TIMEOUT);
 		if (rc < 0) {
-		    pr_err("%s, __dbg: post fail \n",__func__);
-		    goto post_fail;
+			pr_err("%s, __dbg: post fail \n", __func__);
+			if (qdaemon_task) {
+				if (!strncmp(qdaemon_task->comm, QDAEMON, strlen(QDAEMON))) {
+					pr_err("%s, kill daemon", __func__);
+					send_sig(SIGKILL, qdaemon_task, 0);
+					pr_err("%s, kill this", __func__);
+					send_sig(SIGKILL, current, 0);
+				} else
+					pr_err("%s, now (%s : %d)", __func__,
+					   qdaemon_task->comm, task_pid_nr(qdaemon_task));
+			} else
+				pr_err("error!! can't look for daemon");
+			goto post_fail;
 		}
 		rc = camera_check_event_status(&event);
 		if (rc < 0) {
@@ -624,6 +638,7 @@ post_fail:
 command_ack_q_fail:
 	msm_destroy_session(pvdev->vdev->num);
 session_fail:
+	pm_relax(&pvdev->vdev->dev);
 	camera_v4l2_vb2_q_release(filep);
 vb2_q_fail:
 	camera_v4l2_fh_release(filep);
@@ -680,6 +695,7 @@ static int camera_v4l2_close(struct file *filep)
 		/* This should take care of both normal close
 		 * and application crashes */
 		msm_destroy_session(pvdev->vdev->num);
+		pm_relax(&pvdev->vdev->dev);
 
 	} else {
 		camera_pack_event(filep, MSM_CAMERA_SET_PARM,
@@ -781,6 +797,7 @@ int camera_init_v4l2(struct device *dev, unsigned int *session)
 	*session = pvdev->vdev->num;
 	atomic_set(&pvdev->opened, 0);
 	video_set_drvdata(pvdev->vdev, pvdev);
+	device_init_wakeup(&pvdev->vdev->dev, 1);
 	pr_warn("%s : Succeed!", __func__);
 	goto init_end;
 

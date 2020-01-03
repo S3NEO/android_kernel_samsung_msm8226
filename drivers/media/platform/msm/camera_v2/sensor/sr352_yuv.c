@@ -155,7 +155,7 @@ void sr352_get_ev_data_preflash_func2(struct msm_sensor_ctrl_t *s_ctrl);
 void sr352_set_ev_data_mainFlash_func3(struct msm_sensor_ctrl_t *s_ctrl);
 void sr352_return_ev_data_func4(struct msm_sensor_ctrl_t *s_ctrl);
 void sr352_actuator_softlanding(struct msm_sensor_ctrl_t *s_ctrl);
-void sr352_ae_stable_without_af(struct msm_sensor_ctrl_t *s_ctrl);
+void sr352_ae_stable_without_af(struct msm_sensor_ctrl_t *s_ctrl, int flicker_type);
 static int sr352_is_required_flash(struct msm_sensor_ctrl_t *s_ctrl, int flash_mode);
 void sr352_set_af_mode(struct msm_sensor_ctrl_t *s_ctrl, int mode);
 void sr352_recording_landing(struct msm_sensor_ctrl_t *s_ctrl);
@@ -386,12 +386,12 @@ int32_t sr352_set_scene_mode(struct msm_sensor_ctrl_t *s_ctrl, int mode)
 }
 
 
-int32_t sr352_set_ae_awb_lock(struct msm_sensor_ctrl_t *s_ctrl, int mode)
+int32_t sr352_set_ae_awb_lock(struct msm_sensor_ctrl_t *s_ctrl, int mode, int flicker_type)
 {
     int32_t rc = 0;
     CDBG("mode = %d", mode);
 
-    if(ANTIBANDING_60HZ) {
+    if(flicker_type == MSM_CAM_FLICKER_60HZ) {
         if(mode) {
             rc = SR352_WRITE_LIST(sr352_AEAWB_Lock_60Hz);
         } else {
@@ -456,7 +456,7 @@ int32_t sr352_set_metering(struct msm_sensor_ctrl_t *s_ctrl, int mode)
     return rc;
 }
 
-int32_t sr352_set_resolution(struct msm_sensor_ctrl_t *s_ctrl, int mode)
+int32_t sr352_set_resolution(struct msm_sensor_ctrl_t *s_ctrl, int mode, int flicker_type)
 {
     int32_t rc = 0;
     CDBG("mode = %d", mode);
@@ -500,10 +500,10 @@ int32_t sr352_set_resolution(struct msm_sensor_ctrl_t *s_ctrl, int mode)
             else {
                 rc = SR352_WRITE_LIST_BURST(sr352_recording_50Hz_HD);
             }
-            if(ANTIBANDING_60HZ) {
-                rc = SR352_WRITE_LIST(sr352_HD_60hz_setting);
-            } else {
+            if(flicker_type == MSM_CAM_FLICKER_50HZ) {
                 rc = SR352_WRITE_LIST(sr352_HD_50hz_setting);
+            } else {
+                rc = SR352_WRITE_LIST(sr352_HD_60hz_setting);
             }
 #if defined (AF_FLASH_SUPPORT)
             SR352_WRITE_LIST(sr352_HD_AF_Init_Reg);
@@ -523,16 +523,25 @@ int32_t sr352_set_resolution(struct msm_sensor_ctrl_t *s_ctrl, int mode)
         case MSM_SENSOR_RES_6:
             rc = SR352_WRITE_LIST(sr352_preview_320_240);
             break;
+#ifdef CONFIG_MACH_MILLETLTE_KOR
+        case MSM_SENSOR_RES_7:
+                rc = SR352_WRITE_LIST(sr352_preview_352_288);
+                break;
+        case MSM_SENSOR_RES_8:
+                rc = SR352_WRITE_LIST(sr352_preview_176_144);
+                break;
+#else
         case MSM_SENSOR_RES_7:
             rc = SR352_WRITE_LIST(sr352_preview_176_144);
             break;
+#endif
         default:
             pr_err("%s: Setting %d is invalid\n", __func__, mode);
     }
     return rc;
 }
 
-void sr352_init_camera(struct msm_sensor_ctrl_t *s_ctrl)
+void sr352_init_camera(struct msm_sensor_ctrl_t *s_ctrl , int flicker_type)
 {
     int32_t rc = 0;
     if(settings_type == 1) {
@@ -546,10 +555,10 @@ void sr352_init_camera(struct msm_sensor_ctrl_t *s_ctrl)
 #if defined (AF_FLASH_SUPPORT)
     SR352_WRITE_LIST(sr352_AF_Init_Reg);
 #endif
-    if(ANTIBANDING_60HZ) {
-        rc = SR352_WRITE_LIST(sr352_60hz_setting);
-    } else {
+    if(flicker_type == MSM_CAM_FLICKER_50HZ) {
         rc = SR352_WRITE_LIST(sr352_50hz_setting);
+    } else {
+        rc = SR352_WRITE_LIST(sr352_60hz_setting);
     }
     if(rc <0) {
         pr_err("%s:%d error writing 50hz failed\n", __func__, __LINE__);
@@ -638,6 +647,7 @@ int32_t sr352_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
     int32_t rc = 0;
     int32_t i = 0;
     mutex_lock(s_ctrl->msm_sensor_mutex);
+    sr352_ctrl.settings.flicker = cdata->flicker_type;
 
     switch (cdata->cfgtype) {
         case CFG_GET_SENSOR_INFO:
@@ -667,7 +677,7 @@ int32_t sr352_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
             sr352_regs_table_init("/data/"REG_SET_FILE);
             pr_err("/data/"REG_SET_FILE" inside CFG_SET_INIT_SETTING");
 #endif
-            sr352_init_camera(s_ctrl);
+            sr352_init_camera(s_ctrl , cdata->flicker_type);
 
 #if !defined (AF_FLASH_SUPPORT)
             //Stop stream and start in START_STREAM
@@ -679,7 +689,7 @@ int32_t sr352_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
             if (sr352_ctrl.prev_mode == CAMERA_MODE_RECORDING &&
                 sr352_ctrl.settings.resolution == MSM_SENSOR_RES_3) {
 
-                sr352_init_camera(s_ctrl);
+                sr352_init_camera(s_ctrl , cdata->flicker_type);
                 //Stop stream and start in START_STREAM
                 SR352_WRITE_LIST(sr352_stop_stream);
                 CDBG("CFG CFG_SET_RESOLUTION - HD Recording mode off");
@@ -708,12 +718,12 @@ int32_t sr352_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
                 switch(sr352_ctrl.op_mode) {
                     case CAMERA_MODE_PREVIEW:
                     {
-                        sr352_set_resolution(s_ctrl , sr352_ctrl.settings.resolution);
+                        sr352_set_resolution(s_ctrl , sr352_ctrl.settings.resolution , cdata->flicker_type);
 #if !defined(AF_FLASH_SUPPORT)
                         if (sr352_ctrl.prev_mode == CAMERA_MODE_RECORDING &&
                             sr352_ctrl.settings.prev_resolution == MSM_SENSOR_RES_3) {
 
-                            sr352_set_ae_awb_lock(s_ctrl, 0);
+                            sr352_set_ae_awb_lock(s_ctrl, 0, cdata->flicker_type);
                             msleep(100);
                         }
 
@@ -727,17 +737,21 @@ int32_t sr352_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
                     {
 #if defined (AF_FLASH_SUPPORT)
                         if (!is_af_run)
-                            sr352_ae_stable_without_af(s_ctrl);
+                            sr352_ae_stable_without_af(s_ctrl,sr352_ctrl.settings.flicker);
                         if (need_main_flash) {
                             SR352_WRITE_LIST(sr352_stop_stream);
-                            SR352_WRITE_LIST(sr352_AfterPreFlash_FlashRegTable4_1);
+                            if(sr352_ctrl.settings.flicker == MSM_CAM_FLICKER_60HZ) {
+                                SR352_WRITE_LIST(sr352_AfterPreFlash_FlashRegTable4_1_60Hz);
+                            } else {
+                                SR352_WRITE_LIST(sr352_AfterPreFlash_FlashRegTable4_1);
+                            }
                             sr352_set_ev_data_mainFlash_func3(s_ctrl);
                             set_led_flash(MSM_CAMERA_LED_HIGH);
                             SR352_WRITE_LIST(sr352_StartMainFlash_FlashRegTable5);
                             flash_status = MSM_CAMERA_LED_HIGH;
                         }
 #endif
-                        sr352_set_resolution(s_ctrl , sr352_ctrl.settings.resolution);
+                        sr352_set_resolution(s_ctrl , sr352_ctrl.settings.resolution , cdata->flicker_type);
                     }
                     break;
                     case  CAMERA_MODE_RECORDING:
@@ -750,10 +764,10 @@ int32_t sr352_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 #endif
                         if ( sr352_ctrl.settings.resolution == MSM_SENSOR_RES_3 ) {
                             CDBG("CFG writing *** sr352_recording_50Hz_HD");
-                            sr352_set_resolution( s_ctrl , sr352_ctrl.settings.resolution);
+                            sr352_set_resolution( s_ctrl , sr352_ctrl.settings.resolution , cdata->flicker_type );
                         } else {
                             CDBG("CFG writing *** sr352_recording_50Hz_30fps");
-                            sr352_set_resolution( s_ctrl , MSM_SENSOR_RES_5);
+                            sr352_set_resolution( s_ctrl , MSM_SENSOR_RES_5 , cdata->flicker_type);
                             if(settings_type == 1) {
                                 rc = SR352_WRITE_LIST(sr352_recording_50Hz_30fps_01);
                             }
@@ -779,7 +793,11 @@ int32_t sr352_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
                         if (flash_status == MSM_CAMERA_LED_HIGH) {
                            set_led_flash(MSM_CAMERA_LED_OFF);
                            flash_status = MSM_CAMERA_LED_OFF;
-                           SR352_WRITE_LIST(sr352_AfterMainFlash_FlashRegTable6);
+                           if(sr352_ctrl.settings.flicker == MSM_CAM_FLICKER_60HZ) {
+                               SR352_WRITE_LIST(sr352_AfterMainFlash_FlashRegTable6_60Hz);
+                           } else {
+                               SR352_WRITE_LIST(sr352_AfterMainFlash_FlashRegTable6);
+                           }
                            sr352_return_ev_data_func4(s_ctrl);
                            SR352_WRITE_LIST(sr352_EndMainFlash_FlashRegTable7);
                            need_main_flash = 0;
@@ -1079,21 +1097,33 @@ int32_t sr352_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 
 
 #if defined (AF_FLASH_SUPPORT)
-void sr352_ae_stable_without_af(struct msm_sensor_ctrl_t *s_ctrl)
+void sr352_ae_stable_without_af(struct msm_sensor_ctrl_t *s_ctrl, int flicker_type)
 {
     is_preflash = sr352_is_required_flash(s_ctrl, flash_mode);
     if (is_preflash) {
         memset(&Flash, 0, sizeof(Flash));
-        SR352_WRITE_LIST(sr352_StartPreFlash_FlashRegTable1);
-        sr352_get_ev_data_flash_Off_func1(s_ctrl);
-        SR352_WRITE_LIST(sr352_ReadyPreFlash_FlashRegTable2);
+        if(flicker_type == MSM_CAM_FLICKER_60HZ) {
+            SR352_WRITE_LIST(sr352_StartPreFlash_FlashRegTable1_60Hz);
+            sr352_get_ev_data_flash_Off_func1(s_ctrl);
+            SR352_WRITE_LIST(sr352_ReadyPreFlash_FlashRegTable2_60Hz);
+        } else {
+            SR352_WRITE_LIST(sr352_StartPreFlash_FlashRegTable1);
+            sr352_get_ev_data_flash_Off_func1(s_ctrl);
+            SR352_WRITE_LIST(sr352_ReadyPreFlash_FlashRegTable2);
+        }
         set_led_flash(MSM_CAMERA_LED_LOW);
         flash_status = MSM_CAMERA_LED_LOW;
         need_main_flash = 1;
         msleep(600); /* AE become stable here */
-        SR352_WRITE_LIST(sr352_AfterPreFlash_FlashRegTable3);
-        sr352_get_ev_data_preflash_func2(s_ctrl);
-        SR352_WRITE_LIST(sr352_EndPreFlash_FlashRegTable4);
+        if(flicker_type == MSM_CAM_FLICKER_60HZ) {
+            SR352_WRITE_LIST(sr352_AfterPreFlash_FlashRegTable3_60Hz);
+            sr352_get_ev_data_preflash_func2(s_ctrl);
+            SR352_WRITE_LIST(sr352_EndPreFlash_FlashRegTable4_60Hz);
+        } else {
+            SR352_WRITE_LIST(sr352_AfterPreFlash_FlashRegTable3);
+            sr352_get_ev_data_preflash_func2(s_ctrl);
+            SR352_WRITE_LIST(sr352_EndPreFlash_FlashRegTable4);
+        }
         msleep(50);
         set_led_flash(MSM_CAMERA_LED_OFF);
         msleep(300);
@@ -1912,7 +1942,7 @@ void sr352_cancel_af(struct msm_sensor_ctrl_t *s_ctrl)
     SR352_WRITE_ADDR(0x11, focus_reg);
 }
 
-int32_t sr352_set_af_status(struct msm_sensor_ctrl_t *s_ctrl, int status, int initial_pos)
+int32_t sr352_set_af_status(struct msm_sensor_ctrl_t *s_ctrl, int status, int initial_pos, int flicker_type)
 {
     int rc = -EINVAL;
 
@@ -1924,9 +1954,15 @@ int32_t sr352_set_af_status(struct msm_sensor_ctrl_t *s_ctrl, int status, int in
 
             if (is_preflash) {
                 memset(&Flash, 0, sizeof(Flash));
-                SR352_WRITE_LIST(sr352_StartPreFlash_FlashRegTable1);
-                sr352_get_ev_data_flash_Off_func1(s_ctrl);
-                SR352_WRITE_LIST(sr352_ReadyPreFlash_FlashRegTable2);
+                if(flicker_type == MSM_CAM_FLICKER_60HZ) {
+                    SR352_WRITE_LIST(sr352_StartPreFlash_FlashRegTable1_60Hz);
+                    sr352_get_ev_data_flash_Off_func1(s_ctrl);
+                    SR352_WRITE_LIST(sr352_ReadyPreFlash_FlashRegTable2_60Hz);
+                } else {
+                    SR352_WRITE_LIST(sr352_StartPreFlash_FlashRegTable1);
+                    sr352_get_ev_data_flash_Off_func1(s_ctrl);
+                    SR352_WRITE_LIST(sr352_ReadyPreFlash_FlashRegTable2);
+                }
                 set_led_flash(MSM_CAMERA_LED_LOW);
                 flash_status = MSM_CAMERA_LED_LOW;
                 rc = SENSOR_AF_PRE_FLASH_ON;
@@ -1940,9 +1976,15 @@ int32_t sr352_set_af_status(struct msm_sensor_ctrl_t *s_ctrl, int status, int in
         case SENSOR_AF_PRE_FLASH_OFF:
             CDBG("SENSOR_AF_PRE_FLASH_OFF\n");
             if (is_preflash) {
-                SR352_WRITE_LIST(sr352_AfterPreFlash_FlashRegTable3);
-                sr352_get_ev_data_preflash_func2(s_ctrl);
-                SR352_WRITE_LIST(sr352_EndPreFlash_FlashRegTable4);
+                if(flicker_type == MSM_CAM_FLICKER_60HZ) {
+                    SR352_WRITE_LIST(sr352_AfterPreFlash_FlashRegTable3_60Hz);
+                    sr352_get_ev_data_preflash_func2(s_ctrl);
+                    SR352_WRITE_LIST(sr352_EndPreFlash_FlashRegTable4_60Hz);
+                } else {
+                    SR352_WRITE_LIST(sr352_AfterPreFlash_FlashRegTable3);
+                    sr352_get_ev_data_preflash_func2(s_ctrl);
+                    SR352_WRITE_LIST(sr352_EndPreFlash_FlashRegTable4);
+                }
                 if (!is_touchaf)
                     msleep(100);
 
@@ -2063,10 +2105,10 @@ int32_t sr352_sensor_native_control(struct msm_sensor_ctrl_t *s_ctrl,
 #if defined (AF_FLASH_SUPPORT)
             if(!flash_mode){
                 CDBG("EXT_CAM_SET_AE_AWB, !flash_mode");
-                sr352_set_ae_awb_lock(s_ctrl, sr352_ctrl.settings.aeawblock);
+                sr352_set_ae_awb_lock(s_ctrl, sr352_ctrl.settings.aeawblock, sr352_ctrl.settings.flicker);
             }
 #else
-            sr352_set_ae_awb_lock(s_ctrl, sr352_ctrl.settings.aeawblock);
+            sr352_set_ae_awb_lock(s_ctrl, sr352_ctrl.settings.aeawblock, sr352_ctrl.settings.flicker);
 #endif
         break;
 #if defined (AF_FLASH_SUPPORT)
@@ -2080,7 +2122,7 @@ int32_t sr352_sensor_native_control(struct msm_sensor_ctrl_t *s_ctrl,
             CDBG("DAFF EXT_CAM_SET_AF_STATUS: %d : %d\n", cam_info->value_1, cam_info->value_2);
 
             cam_info->value_1 = sr352_set_af_status(s_ctrl, cam_info->value_1,
-                    cam_info->value_2);
+                    cam_info->value_2, sr352_ctrl.settings.flicker);
 
             if (!copy_to_user((void *)argp, (const void *)&cam_info,
                         sizeof(cam_info)))
@@ -2127,7 +2169,11 @@ int32_t sr352_sensor_native_control(struct msm_sensor_ctrl_t *s_ctrl,
                     if (flash_status == MSM_CAMERA_LED_HIGH) {
                         set_led_flash(MSM_CAMERA_LED_OFF);
                         flash_status = MSM_CAMERA_LED_OFF;
-                        SR352_WRITE_LIST(sr352_AfterMainFlash_FlashRegTable6);
+                        if(sr352_ctrl.settings.flicker == MSM_CAM_FLICKER_60HZ) {
+                            SR352_WRITE_LIST(sr352_AfterMainFlash_FlashRegTable6_60Hz);
+                        } else {
+                            SR352_WRITE_LIST(sr352_AfterMainFlash_FlashRegTable6);
+                        }
                         sr352_return_ev_data_func4(s_ctrl);
                         SR352_WRITE_LIST(sr352_EndMainFlash_FlashRegTable7);
                         need_main_flash = 0;
@@ -2157,6 +2203,7 @@ void sr352_set_default_settings(void)
     sr352_ctrl.settings.effect = CAMERA_EFFECT_OFF;
     sr352_ctrl.settings.scenemode = CAMERA_SCENE_AUTO;
     sr352_ctrl.settings.aeawblock = 0;
+    sr352_ctrl.settings.flicker = MSM_CAM_FLICKER_50HZ;
 }
 
 #ifndef NO_BURST

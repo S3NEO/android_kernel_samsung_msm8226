@@ -11,6 +11,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <mach/iommu.h>
 #include <linux/ratelimit.h>
 
@@ -976,7 +977,7 @@ static void msm_vfe40_axi_clear_wm_xbar_reg(
 		vfe_dev->vfe_base + VFE40_XBAR_BASE(wm));
 }
 
-#define MSM_ISP40_TOTAL_WM_UB 819
+#define MSM_ISP40_TOTAL_WM_UB 1140
 
 static void msm_vfe40_cfg_axi_ub_equal_default(
 	struct vfe_device *vfe_dev)
@@ -987,7 +988,7 @@ static void msm_vfe40_cfg_axi_ub_equal_default(
 		&vfe_dev->axi_data;
 	uint32_t total_image_size = 0;
 	uint8_t num_used_wms = 0;
-	uint32_t prop_size = 0;
+	uint64_t prop_size = 0;
 	uint32_t wm_ub_size;
 	uint32_t delta;
 
@@ -1002,8 +1003,8 @@ static void msm_vfe40_cfg_axi_ub_equal_default(
 	for (i = 0; i < axi_data->hw_info->num_wm; i++) {
 		if (axi_data->free_wm[i]) {
 			delta =
-				(axi_data->wm_image_size[i] *
-					prop_size)/total_image_size;
+				(uint32_t)DIV_ROUND_UP_ULL((prop_size *
+					axi_data->wm_image_size[i]), total_image_size);
 			wm_ub_size = axi_data->hw_info->min_wm_ub + delta;
 			msm_camera_io_w(ub_offset << 16 | (wm_ub_size - 1),
 				vfe_dev->vfe_base + VFE40_WM_BASE(i) + 0x10);
@@ -1347,7 +1348,7 @@ static void msm_vfe40_get_halt_restart_mask(uint32_t *irq0_mask,
 	*irq1_mask = BIT(8);
 }
 static struct msm_vfe_axi_hardware_info msm_vfe40_axi_hw_info = {
-	.num_wm = 5,
+	.num_wm = 6,
 	.num_comp_mask = 2,
 	.num_rdi = 3,
 	.num_rdi_master = 3,
