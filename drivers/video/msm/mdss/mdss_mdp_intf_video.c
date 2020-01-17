@@ -882,6 +882,7 @@ int mdss_mdp_video_reconfigure_splash_done(struct mdss_mdp_ctl *ctl,
 		ret = mdss_mdp_ctl_intf_event(ctl,
 			MDSS_EVENT_CONT_SPLASH_FINISH, NULL);
 	}
+#if !defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL)
 #if !defined(CONFIG_FB_MSM_EDP_SAMSUNG)
 	else
 	{
@@ -895,6 +896,7 @@ int mdss_mdp_video_reconfigure_splash_done(struct mdss_mdp_ctl *ctl,
 		mdss_mdp_ctl_intf_event(ctl,MDSS_EVENT_CONT_SPLASH_FINISH, NULL);
 		mdss_mdp_ctl_intf_event(ctl,MDSS_EVENT_UNBLANK, NULL);
 	}
+#endif
 #endif
 
 error:
