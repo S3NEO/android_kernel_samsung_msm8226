@@ -2151,7 +2151,11 @@ int32_t sr352_sensor_native_control(struct msm_sensor_ctrl_t *s_ctrl,
 void sr352_set_default_settings(void)
 {
     sr352_ctrl.settings.metering = CAMERA_CENTER_WEIGHT;
+    #if defined(CONFIG_SEC_MILLET_PROJECT) || defined (CONFIG_SEC_MATISSE_PROJECT)
+    sr352_ctrl.settings.exposure = CAMERA_EV_M4;
+    #else
     sr352_ctrl.settings.exposure = CAMERA_EV_DEFAULT;
+    #endif
     sr352_ctrl.settings.wb = CAMERA_WHITE_BALANCE_AUTO;
     sr352_ctrl.settings.iso = CAMERA_ISO_MODE_AUTO;
     sr352_ctrl.settings.effect = CAMERA_EFFECT_OFF;
