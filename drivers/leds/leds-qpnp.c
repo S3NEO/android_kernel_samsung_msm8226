@@ -450,12 +450,12 @@ struct flash_config_data {
 	bool	safety_timer;
 	bool	torch_enable;
 	bool	flash_reg_get;
-#if !defined(CONFIG_LEDS_AN30259A)
+#if !defined(CONFIG_MACH_S3VE3G_EUR)
 	bool    flash_wa_reg_get;
 #endif
 	bool	flash_on;
 	bool	torch_on;
-#if !defined(CONFIG_LEDS_AN30259A)
+#if !defined(CONFIG_MACH_S3VE3G_EUR)
 	struct regulator *flash_wa_reg;
 #endif
 #ifndef SAMSUNG_USE_EXTERNAL_CHARGER
@@ -1173,7 +1173,7 @@ static int qpnp_flash_regulator_operate(struct qpnp_led_data *led, bool on)
 
 	if (!regulator_on && !led->flash_cfg->flash_on) {
 #ifndef SAMSUNG_USE_EXTERNAL_CHARGER
-#if !defined(CONFIG_LEDS_AN30259A)
+#if !defined(CONFIG_MACH_S3VE3G_EUR)
 		for (i = 0; i < led->num_leds; i++) {
 			if (led_array[i].flash_cfg->flash_reg_get) {
 				if (led_array[i].flash_cfg->flash_wa_reg_get) {
@@ -1212,9 +1212,9 @@ static int qpnp_flash_regulator_operate(struct qpnp_led_data *led, bool on)
 			break;
 			}
 #endif
+#if !defined(CONFIG_MACH_S3VE3G_EUR) && !defined(CONFIG_MACH_MS01_LTE)
 		for (i = 0; i < led->num_leds; i++) {
 			if (led_array[i].flash_cfg->flash_reg_get) {
-#if !defined(CONFIG_LEDS_AN30259A)
 				rc = regulator_enable(
 					led_array[i].flash_cfg->flash_wa_reg);
 				if (rc) {
@@ -1223,7 +1223,6 @@ static int qpnp_flash_regulator_operate(struct qpnp_led_data *led, bool on)
 								rc);
 					return rc;
 				}
-#endif
 				rc = regulator_enable(
 					led_array[i].flash_cfg->\
 					flash_boost_reg);
@@ -1237,6 +1236,7 @@ static int qpnp_flash_regulator_operate(struct qpnp_led_data *led, bool on)
 			}
 			break;
 			}
+#endif
 #endif
 	    for (i = 0; i < led->num_leds; i++) {
 #ifdef SAMSUNG_USE_EXTERNAL_CHARGER
@@ -1287,7 +1287,7 @@ regulator_turn_off:
 						"failed(%d)\n", rc);
 					return rc;
 				}
-#if !defined(CONFIG_LEDS_AN30259A)
+#if !defined(CONFIG_MACH_S3VE3G_EUR)
 				if (led_array[i].flash_cfg->flash_wa_reg_get) {
 					rc = regulator_disable(
 						led_array[i].flash_cfg->
@@ -1367,6 +1367,9 @@ regulator_turn_off:
     return 0;
 }
 
+#if defined(CONFIG_MACH_S3VE3G_EUR) || defined(CONFIG_MACH_MS01_LTE)
+extern void change_boost_control(int on);
+#endif
 static int qpnp_flash_set(struct qpnp_led_data *led)
 {
 	int rc, error;
@@ -1381,6 +1384,9 @@ static int qpnp_flash_set(struct qpnp_led_data *led)
 
 	/* Set led current */
 	if (val > 0) {
+#if defined(CONFIG_MACH_S3VE3G_EUR) || defined(CONFIG_MACH_MS01_LTE)
+		change_boost_control(1);
+#endif
 		if (led->flash_cfg->torch_enable) {
 			if (led->flash_cfg->peripheral_subtype ==
 							FLASH_SUBTYPE_DUAL) {
@@ -1567,6 +1573,9 @@ static int qpnp_flash_set(struct qpnp_led_data *led)
 			}
 		}
 	} else {
+#if defined(CONFIG_MACH_S3VE3G_EUR) || defined(CONFIG_MACH_MS01_LTE)
+		change_boost_control(0);
+#endif
 		rc = qpnp_led_masked_write(led,
 			FLASH_LED_STROBE_CTRL(led->base),
 			led->flash_cfg->trigger_flash,
@@ -3345,7 +3354,7 @@ static int __devinit qpnp_get_config_flash(struct qpnp_led_data *led,
 	led->flash_cfg->torch_enable =
 		of_property_read_bool(node, "qcom,torch-enable");
 
-#if !defined(CONFIG_LEDS_AN30259A)
+#if !defined(CONFIG_MACH_S3VE3G_EUR)
 	if (of_find_property(of_get_parent(node), "flash-wa-supply",
 					NULL) && (!*reg_set)) {
 		led->flash_cfg->flash_wa_reg =
