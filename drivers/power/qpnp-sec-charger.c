@@ -6707,7 +6707,7 @@ enum hrtimer_restart sec_bat_polling_alarm_expired(struct hrtimer *timer)
 }
 
 #endif
-#if defined(CONFIG_MACH_MS01_LTE)
+#if defined(CONFIG_MACH_S3VE3G_EUR) || defined(CONFIG_SEC_ATLANTIC_PROJECT) || defined(CONFIG_MACH_MS01_LTE)
 static struct qpnp_chg_chip    * chg_chip;
 void change_boost_control(int on)
 {
