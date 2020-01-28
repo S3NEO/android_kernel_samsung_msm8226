@@ -899,6 +899,10 @@ struct input_keymap_entry {
 #define ABS_MT_PRESSURE		0x3a	/* Pressure on contact area */
 #define ABS_MT_DISTANCE		0x3b	/* Contact hover distance */
 
+#ifdef CONFIG_TOUCHSCREEN_MMS144
+#define ABS_MT_ANGLE		0x3c	/* touch angle */
+#endif
+
 #ifdef CONFIG_INPUT_EXPANDED_ABS
 #define ABS_MT_PALM		0x40	/* palm touch */
 #define ABS_MT_GRIP		0x41	/* grip touch */
