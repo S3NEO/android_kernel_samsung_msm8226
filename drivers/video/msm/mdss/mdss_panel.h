@@ -16,7 +16,17 @@
 
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#if defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL)
+#include "smart_mtp_s6e8aa0x01.h"
+#include "smart_dimming.h"
+typedef unsigned int boolean;
+#endif
 
+#if defined(CONFIG_FB_MSM_MDSS_MAGNA_WVGA_PANEL)
+#include "smart_mtp_ea8868.h"
+#include "smart_dimming.h"
+typedef unsigned int boolean;
+#endif
 /* panel id type */
 struct panel_id {
 	u16 id;
@@ -134,6 +144,7 @@ enum mdss_intf_events {
 	MDSS_EVENT_PANEL_ON,
 	MDSS_EVENT_BLANK,
 	MDSS_EVENT_PANEL_OFF,
+	MTP_READ,
 	MDSS_EVENT_CLOSE,
 	MDSS_EVENT_SUSPEND,
 	MDSS_EVENT_RESUME,
@@ -305,10 +316,21 @@ struct mdss_panel_info {
 	struct lvds_panel_info lvds;
 };
 
+#if defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL) ||  defined(CONFIG_FB_MSM_MDSS_MAGNA_WVGA_PANEL)
+#define MTP_DATA_SIZE (24)
+#define ELVSS_DATA_SIZE (24)
+
+struct cmd_set {
+	struct dsi_cmd_desc *cmd;
+	int size;
+};
+#endif
+
 struct mdss_panel_data {
 	struct mdss_panel_info panel_info;
 	void (*set_backlight) (struct mdss_panel_data *pdata, u32 bl_level);
 	unsigned char *mmss_cc_base;
+	int (*panel_reset_fn)(struct mdss_panel_data *pdata, int enable);
 
 	/**
 	 * event_handler() - callback handler for MDP core events
@@ -325,6 +347,39 @@ struct mdss_panel_data {
 	int (*event_handler) (struct mdss_panel_data *pdata, int e, void *arg);
 
 	struct mdss_panel_data *next;
+
+#if defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL) || defined(CONFIG_FB_MSM_MDSS_MAGNA_WVGA_PANEL)
+	unsigned char *gamma_smartdim_4_8;
+	int *lux_table;
+	int lux_table_max_cnt;
+	struct SMART_DIM smart_s6e8aa0x01;
+	struct SMART_DIM smart_ea8868;
+
+	struct str_smart_dim smart;
+	signed char lcd_current_cd_idx;
+	unsigned char lcd_mtp_data[MTP_DATA_SIZE+16] ;
+	unsigned char lcd_elvss_data[ELVSS_DATA_SIZE+16];
+	unsigned char *gamma_smartdim;
+	unsigned char *gamma_initial;
+
+	struct cmd_set gamma_update;
+	struct cmd_set elvss_update;
+	struct cmd_set elvss_update_4_8;
+
+	struct cmd_set acl_on;
+	struct cmd_set acl_off;
+	struct cmd_set acl_update;
+
+	int (*set_gamma)(int bl_level, int gamma_mode);
+	int (*set_acl)(int bl_level);
+	int (*set_elvss)(int bl_level);
+	int (*set_elvss_4_8)(int bl_level);
+	int (*prepare_brightness_control_cmd_array)(int lcd_type, int bl_level);
+
+	struct cmd_set combined_ctrl;
+
+	boolean ldi_acl_stat;
+#endif
 };
 
 /**
@@ -363,6 +418,30 @@ static inline u32 mdss_panel_get_framerate(struct mdss_panel_info *panel_info)
 		break;
 	}
 	return frame_rate;
+}
+
+/**
+* mdss_panel_get_min_bw() - get panel min bw based on resolution
+* @panel_info:	Pointer to panel info containing all panel information
+* the min BW should be = panel_info->xres * panel_info->yres * 4 bpp * frame_rate
+*/
+static inline u32 mdss_panel_get_min_bw(struct mdss_panel_info *panel_info)
+{
+	u32 min_bw, frame_rate;
+
+	if (panel_info == NULL)
+		return -EINVAL;
+
+	frame_rate = mdss_panel_get_framerate(panel_info);
+	switch (panel_info->type) {
+		case WRITEBACK_PANEL:
+		case MIPI_VIDEO_PANEL:
+		case MIPI_CMD_PANEL:
+		default:
+			min_bw = panel_info->xres * panel_info->yres * 4 * frame_rate;
+			break;
+	}
+	return min_bw;
 }
 
 /*
@@ -428,4 +507,9 @@ int mdss_panel_get_boot_cfg(void);
  * returns true if mdss is ready, else returns false.
  */
 bool mdss_is_ready(void);
+int load_565rle_image(char *filename);
+int load_samsung_boot_logo(void);
+#if defined(CONFIG_LCD_CONNECTION_CHECK)
+int is_lcd_attached(void);
+#endif
 #endif /* MDSS_PANEL_H */

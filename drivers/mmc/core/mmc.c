@@ -581,6 +581,18 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		card->ext_csd.max_packed_reads =
 			ext_csd[EXT_CSD_MAX_PACKED_READS];
 	}
+	else{
+		/*
+		 * enable discard feature if emmc is 4.41+ Toshiba eMMC 19nm
+		 *  Normally, emmc 4.5 use EXT_CSD[501]
+		*/
+		if ((ext_csd[501] & 0x3F) && (card->cid.manfid == 0x11))
+			card->ext_csd.feature_support |= MMC_DISCARD_FEATURE;
+
+		/* enable discard feature if emmc is 4.41+ moviNand (EXT_CSD_VENDOR_SPECIFIC_FIELD:64)*/
+		if ((ext_csd[64] & 0x1) && (card->cid.manfid == 0x15))
+			card->ext_csd.feature_support |= MMC_DISCARD_FEATURE;
+	}	
 
 out:
 	return err;
@@ -672,6 +684,15 @@ MMC_DEV_ATTR(enhanced_area_offset, "%llu\n",
 MMC_DEV_ATTR(enhanced_area_size, "%u\n", card->ext_csd.enhanced_area_size);
 MMC_DEV_ATTR(raw_rpmb_size_mult, "%#x\n", card->ext_csd.raw_rpmb_size_mult);
 MMC_DEV_ATTR(rel_sectors, "%#x\n", card->ext_csd.rel_sectors);
+MMC_DEV_ATTR(caps, "0x%08x\n", (unsigned int)(card->host->caps));
+MMC_DEV_ATTR(caps2, "0x%08x\n", card->host->caps2);
+MMC_DEV_ATTR(erase_type, "MMC_CAP_ERASE %s, type %s, SECURE %s, Sanitize %s\n",
+	card->host->caps & MMC_CAP_ERASE ? "enabled" : "disabled",
+	mmc_can_discard(card) ? "DISCARD" :
+	(mmc_can_trim(card) ? "TRIM" : "NORMAL"),
+	mmc_can_secure_erase_trim(card) ?
+	"supportable" : "disabled",
+	mmc_can_sanitize(card) ? "enabled" : "disabled");
 
 static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_cid.attr,
@@ -689,6 +710,9 @@ static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_enhanced_area_size.attr,
 	&dev_attr_raw_rpmb_size_mult.attr,
 	&dev_attr_rel_sectors.attr,
+	&dev_attr_caps.attr,
+	&dev_attr_caps2.attr,
+	&dev_attr_erase_type.attr,
 	NULL,
 };
 
@@ -1778,8 +1802,12 @@ static int mmc_suspend(struct mmc_host *host)
 	if (err)
 		goto out;
 
-	if (mmc_card_can_sleep(host))
+	if (mmc_can_poweroff_notify(host->card))
+		err = mmc_poweroff_notify(host->card, EXT_CSD_POWER_OFF_SHORT);
+	/*
+	else if (mmc_card_can_sleep(host))
 		err = mmc_card_sleep(host);
+	*/
 	else if (!mmc_host_is_spi(host))
 		mmc_deselect_cards(host);
 	host->card->state &= ~(MMC_STATE_HIGHSPEED | MMC_STATE_HIGHSPEED_200);

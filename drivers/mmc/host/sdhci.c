@@ -746,12 +746,6 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_command *cmd)
 	if (host->quirks & SDHCI_QUIRK_BROKEN_TIMEOUT_VAL)
 		return 0xE;
 
-	/* During initialization, don't use max timeout as the clock is slow */
-	if ((host->quirks2 & SDHCI_QUIRK2_USE_RESERVED_MAX_TIMEOUT) &&
-		(host->clock > 400000)) {
-		return 0xF;
-	}
-
 	/* Unspecified timeout, assume max */
 	if (!data && !cmd->cmd_timeout_ms)
 		return 0xE;
@@ -1583,6 +1577,16 @@ static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
 	if (host->flags & SDHCI_DEVICE_DEAD) {
 		if (host->vmmc && ios->power_mode == MMC_POWER_OFF)
 			mmc_regulator_set_ocr(host->mmc, host->vmmc, 0);
+		mutex_unlock(&host->ios_mutex);
+		return;
+	}
+
+	if ((ios->power_mode & MMC_POWER_UP) && !host->pwr) {
+		if (!host->clock) {
+		host->ops->set_clock(host, 400000);	// Prepare clock for host controller
+		}
+
+		vdd_bit = sdhci_set_power(host, ios->vdd);
 		mutex_unlock(&host->ios_mutex);
 		return;
 	}
@@ -2420,7 +2424,10 @@ static void sdhci_tasklet_finish(unsigned long param)
 	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
 
+	spin_lock_irqsave(&host->mmc->mrq_lock, flags);
 	mmc_request_done(host->mmc, mrq);
+	spin_unlock_irqrestore(&host->mmc->mrq_lock, flags);
+
 	sdhci_runtime_pm_put(host);
 }
 
@@ -3044,6 +3051,7 @@ struct sdhci_host *sdhci_alloc_host(struct device *dev,
 	host->mmc = mmc;
 
 	spin_lock_init(&host->lock);
+	spin_lock_init(&mmc->mrq_lock);
 	mutex_init(&host->ios_mutex);
 
 	return host;

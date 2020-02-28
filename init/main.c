@@ -79,6 +79,10 @@
 #include <asm/smp.h>
 #endif
 
+#ifdef CONFIG_SEC_GPIO_DVS
+#include <linux/secgpio_dvs.h>
+#endif
+
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
@@ -106,6 +110,19 @@ bool early_boot_irqs_disabled __read_mostly;
 
 enum system_states system_state __read_mostly;
 EXPORT_SYMBOL(system_state);
+
+//#ifdef CONFIG_SAMSUNG_LPM_MODE
+int poweroff_charging;
+//#endif /*  CONFIG_SAMSUNG_LPM_MODE */
+
+#ifdef CONFIG_FB_MSM_LOGO
+bool use_frame_buffer = 1;
+#else
+bool use_frame_buffer = 0;
+#endif
+
+unsigned int board_hw_revision;
+EXPORT_SYMBOL(board_hw_revision);
 
 /*
  * Boot command-line arguments
@@ -402,6 +419,49 @@ static int __init do_early_param(char *param, char *val)
 		}
 	}
 	/* We accept everything at this stage. */
+//#ifdef CONFIG_SAMSUNG_LPM_MODE
+	/*  check power off charging */
+	if ((strncmp(param, "androidboot.bootchg", 19) == 0)) {
+		if (strncmp(val, "true", 4) == 0) {
+			poweroff_charging = 1;
+			use_frame_buffer = 1;
+		}
+	}
+//#endif
+	if ((strncmp(param, "androidboot.boot_recovery", 25) == 0))
+		if (strncmp(val, "1", 1) == 0)
+			use_frame_buffer = 1;
+
+	if ((strncmp(param, "samsung.board_rev", 17) == 0))
+	{
+		if (strcmp(val, "1") == 0)
+			board_hw_revision = 1;
+		else if (strcmp(val, "2") == 0)
+			board_hw_revision = 2;
+		else if (strcmp(val, "3") == 0)
+			board_hw_revision = 3;
+		else if (strcmp(val, "4") == 0)
+			board_hw_revision = 4;
+		else if (strcmp(val, "5") == 0)
+			board_hw_revision = 5;
+		else if (strcmp(val, "6") == 0)
+			board_hw_revision = 6;
+		else if (strcmp(val, "7") == 0)
+			board_hw_revision = 7;
+		else if (strcmp(val, "8") == 0)
+			board_hw_revision = 8;
+		else if (strcmp(val, "9") == 0)
+			board_hw_revision = 9;
+		else if (strcmp(val, "10") == 0)
+			board_hw_revision = 10;
+		else if (strcmp(val, "11") == 0)
+			board_hw_revision = 11;
+		else
+			board_hw_revision = 0;
+
+		printk("MS01 H/W revision : 0x0%d\n", board_hw_revision);
+	}
+	
 	return 0;
 }
 
@@ -801,6 +861,15 @@ static void run_init_process(const char *init_filename)
  */
 static noinline int init_post(void)
 {
+#ifdef CONFIG_SEC_GPIO_DVS
+	/************************ Caution !!! ****************************/
+	/* This function must be located in appropriate INIT position
+	 * in accordance with the specification of each BB vendor.
+	 */
+	/************************ Caution !!! ****************************/
+	gpio_dvs_check_initgpio();
+#endif
+
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();
 	free_initmem();

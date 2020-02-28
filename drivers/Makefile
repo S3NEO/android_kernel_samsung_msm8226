@@ -85,6 +85,7 @@ obj-y				+= i2c/ media/
 obj-$(CONFIG_PPS)		+= pps/
 obj-$(CONFIG_PTP_1588_CLOCK)	+= ptp/
 obj-$(CONFIG_W1)		+= w1/
+obj-$(CONFIG_BATTERY_SAMSUNG)	+= battery/
 obj-$(CONFIG_POWER_SUPPLY)	+= power/
 obj-$(CONFIG_HWMON)		+= hwmon/
 obj-$(CONFIG_THERMAL)		+= thermal/
@@ -131,6 +132,7 @@ obj-$(CONFIG_NFC)		+= nfc/
 obj-$(CONFIG_IOMMU_SUPPORT)	+= iommu/
 obj-$(CONFIG_REMOTEPROC)	+= remoteproc/
 obj-$(CONFIG_RPMSG)		+= rpmsg/
+obj-$(CONFIG_ANDROID_TIMED_OUTPUT)              += motor/
 
 # Virtualization drivers
 obj-$(CONFIG_VIRT_DRIVERS)	+= virt/
@@ -143,4 +145,14 @@ obj-$(CONFIG_MOBICORE_SUPPORT)  += gud/
 
 obj-$(CONFIG_CORESIGHT)		+= coresight/
 
+obj-$(CONFIG_MSM_VIBRATOR) += motor/
+obj-$(CONFIG_MOTOR_DRV_DRV2603) += motor/
 obj-$(CONFIG_BIF)		+= bif/
+obj-$(CONFIG_SENSORS_CORE)	+= sensors/
+obj-$(CONFIG_SENSORS_INVENSENSE)	+= sensors_invensense/
+obj-$(CONFIG_ADSP_FACTORY)      += adsp_factory/
+obj-$(CONFIG_IR_REMOCON_MC96)	+= irda/
+
+ifeq (1, $(shell if [ -d ../../../../../../kernel/drivers/exfat ] ; then echo 1 ; fi))
+obj-y				+= exfat/
+endif

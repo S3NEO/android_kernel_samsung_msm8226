@@ -42,6 +42,10 @@
 #include <asm/ptrace.h>
 #include <asm/localtimer.h>
 #include <asm/smp_plat.h>
+#ifdef CONFIG_SEC_DEBUG
+#include <mach/sec_debug.h>
+#endif
+
 #include <asm/mach/arch.h>
 
 /*
@@ -567,6 +571,9 @@ static void ipi_cpu_stop(unsigned int cpu, struct pt_regs *regs)
 		raw_spin_lock(&stop_lock);
 		printk(KERN_CRIT "CPU%u: stopping\n", cpu);
 		dump_stack();
+#ifdef CONFIG_SEC_DEBUG
+		sec_debug_dump_stack();
+#endif
 		raw_spin_unlock(&stop_lock);
 	}
 

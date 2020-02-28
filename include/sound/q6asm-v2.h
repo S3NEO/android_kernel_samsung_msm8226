@@ -363,4 +363,11 @@ int q6asm_get_apr_service_id(int session_id);
 */
 int q6asm_media_format_block(struct audio_client *ac, uint32_t format);
 
+int q6asm_set_sa(struct audio_client *ac,int *param);
+int q6asm_set_vsp(struct audio_client *ac,int *param);
+int q6asm_set_dha(struct audio_client *ac,int *param);
+int q6asm_set_lrsm(struct audio_client *ac,int *param);
+int q6asm_set_sa_ep(struct audio_client *ac,int *param);
+int q6asm_get_sa_ep(struct audio_client *ac);
+
 #endif /* __Q6_ASM_H__ */

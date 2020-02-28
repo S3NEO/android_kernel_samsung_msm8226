@@ -1357,7 +1357,8 @@ int mdp3_self_map_iommu(struct ion_client *client, struct ion_handle *handle,
 out_unlock:
 	mutex_unlock(&mdp3_res->iommu_lock);
 out:
-	mdp3_iommu_meta_put(iommu_meta);
+	if(iommu_meta)
+		mdp3_iommu_meta_put(iommu_meta);
 	return ret;
 }
 
@@ -2014,7 +2015,7 @@ int mdp3_panel_get_boot_cfg(void)
 
 	if (!mdp3_res || !mdp3_res->pan_cfg.init_done)
 		rc = -EPROBE_DEFER;
-	if (mdp3_res->pan_cfg.lk_cfg)
+	else if (mdp3_res->pan_cfg.lk_cfg)
 		rc = 1;
 	else
 		rc = 0;

@@ -770,7 +770,7 @@ static int msm_hsic_suspend(struct msm_hsic_hcd *mehci)
 		return -EBUSY;
 	}
 
-	if (pdata->consider_ipa_handshake) {
+	if (pdata && pdata->consider_ipa_handshake) {
 		dev_dbg(mehci->dev, "%s:Wait for resources release\n",
 			__func__);
 		if (!msm_bam_hsic_lpm_ok()) {
@@ -879,7 +879,7 @@ static int msm_hsic_resume(struct msm_hsic_hcd *mehci)
 		return 0;
 	}
 
-	if (pdata->consider_ipa_handshake) {
+	if (pdata && pdata->consider_ipa_handshake) {
 		dev_dbg(mehci->dev, "%s:Wait for producer resource\n",
 			__func__);
 		msm_bam_wait_for_hsic_prod_granted();
@@ -974,7 +974,7 @@ skip_phy_resume:
 	enable_irq(hcd->irq);
 	dev_info(mehci->dev, "HSIC-USB exited from low power mode\n");
 
-	if (pdata->consider_ipa_handshake) {
+	if (pdata && pdata->consider_ipa_handshake) {
 		dev_dbg(mehci->dev, "%s:Notify usb bam on resume complete\n",
 			__func__);
 		msm_bam_hsic_notify_on_resume();
@@ -1114,7 +1114,7 @@ static int ehci_hsic_reset(struct usb_hcd *hcd)
 
 	/* Use the AHB transactor and configure async bridge bypass */
 #define MSM_USB_ASYNC_BRIDGE_BYPASS BIT(31)
-	if (pdata->ahb_async_bridge_bypass)
+	if (pdata && pdata->ahb_async_bridge_bypass)
 		writel_relaxed(0x08 | MSM_USB_ASYNC_BRIDGE_BYPASS, USB_AHBMODE);
 	else
 		writel_relaxed(0x08, USB_AHBMODE);
@@ -1399,7 +1399,7 @@ static int ehci_hsic_bus_resume(struct usb_hcd *hcd)
 	struct task_struct	*resume_thread = NULL;
 	struct msm_hsic_host_platform_data *pdata =  mehci->dev->platform_data;
 
-	if (pdata->resume_gpio)
+	if (pdata && pdata->resume_gpio)
 		gpio_direction_output(pdata->resume_gpio, 1);
 
 	if (!mehci->ehci.resume_sof_bug) {
@@ -1444,7 +1444,7 @@ static int ehci_hsic_bus_resume(struct usb_hcd *hcd)
 		spin_unlock_irq(&ehci->lock);
 	}
 
-	if (pdata->resume_gpio)
+	if (pdata && pdata->resume_gpio)
 		gpio_direction_output(pdata->resume_gpio, 0);
 
 	return 0;
@@ -2005,21 +2005,23 @@ static int __devinit ehci_hsic_msm_probe(struct platform_device *pdev)
 
 	spin_lock_init(&mehci->wakeup_lock);
 
-	if (pdata->phy_sof_workaround) {
+	if (pdata && pdata->phy_sof_workaround) {
 		/* Enable ALL workarounds related to PHY SOF bugs */
 		mehci->ehci.susp_sof_bug = 1;
 		mehci->ehci.reset_sof_bug = 1;
 		mehci->ehci.resume_sof_bug = 1;
-	} else if (pdata->phy_susp_sof_workaround) {
+	} else if (pdata && pdata->phy_susp_sof_workaround) {
 		/* Only SUSP SOF hardware bug exists, rest all not present */
 		mehci->ehci.susp_sof_bug = 1;
 	}
 
-	if (pdata->reset_delay)
+	if (pdata && pdata->reset_delay)
 		mehci->ehci.reset_delay = pdata->reset_delay;
 
-	mehci->ehci.pool_64_bit_align = pdata->pool_64_bit_align;
-	mehci->enable_hbm = pdata->enable_hbm;
+	if (pdata) {
+		mehci->ehci.pool_64_bit_align = pdata->pool_64_bit_align;
+		mehci->enable_hbm = pdata->enable_hbm;
+	}
 
 	if (pdata) {
 		mehci->ehci.log2_irq_thresh = pdata->log2_irq_thresh;

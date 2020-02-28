@@ -36,6 +36,7 @@
 #include "msm-dolby-dap-config.h"
 #include "q6voice.h"
 #include "q6core.h"
+extern u32 score;
 
 struct msm_pcm_routing_bdai_data {
 	u16 port_id; /* AFE port ID */
@@ -1322,6 +1323,103 @@ static int msm_routing_put_eq_band_audio_mixer(struct snd_kcontrol *kcontrol,
 	eq_data[eq_idx].eq_bands[band_idx].q_factor =
 					ucontrol->value.integer.value[4];
 	return 0;
+}
+
+static int msm_sec_sa_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static int msm_sec_vsp_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static int msm_sec_dha_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static int msm_sec_sa_ep_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct audio_client *ac;
+	mutex_lock(&routing_lock);
+	ac = q6asm_get_audio_client(fe_dai_map[3][SESSION_TYPE_RX]);
+	pr_info("%s: sa_ep  ret=%d score=%d", __func__, q6asm_get_sa_ep(ac), score);
+	ucontrol->value.integer.value[0] = score;
+	mutex_unlock(&routing_lock);
+	return 0;
+}
+
+static int msm_sec_lrsm_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static int msm_sec_sa_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	int ret = 0;
+	struct audio_client *ac;
+	mutex_lock(&routing_lock);
+	ac = q6asm_get_audio_client(fe_dai_map[3][SESSION_TYPE_RX]);
+	ret = q6asm_set_sa(ac,(int*)ucontrol->value.integer.value);
+	mutex_unlock(&routing_lock);
+	return ret;
+}
+
+static int msm_sec_vsp_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	int ret = 0;
+	struct audio_client *ac;
+	mutex_lock(&routing_lock);
+	ac = q6asm_get_audio_client(fe_dai_map[3][SESSION_TYPE_RX]);
+	ret = q6asm_set_vsp(ac,(int*)ucontrol->value.integer.value);
+	mutex_unlock(&routing_lock);
+	return ret;
+}
+
+
+static int msm_sec_dha_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	int ret = 0;
+	struct audio_client *ac;
+	mutex_lock(&routing_lock);
+	ac = q6asm_get_audio_client(fe_dai_map[3][SESSION_TYPE_RX]);
+	ret = q6asm_set_dha(ac,(int*)ucontrol->value.integer.value);
+	mutex_unlock(&routing_lock);
+	return ret;
+}
+
+static int msm_sec_lrsm_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	int ret = 0;
+	struct audio_client *ac;
+	mutex_lock(&routing_lock);
+	ac = q6asm_get_audio_client(fe_dai_map[3][SESSION_TYPE_RX]);
+	ret = q6asm_set_lrsm(ac,(int*)ucontrol->value.integer.value);
+	mutex_unlock(&routing_lock);
+	return ret;
+}
+
+static int msm_sec_sa_ep_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	int ret = 0;
+	struct audio_client *ac;
+	mutex_lock(&routing_lock);
+	ac = q6asm_get_audio_client(fe_dai_map[3][SESSION_TYPE_RX]);
+	ret = q6asm_set_sa_ep(ac,(int*)ucontrol->value.integer.value);
+	mutex_unlock(&routing_lock);
+	return ret;
 }
 
 static int msm_routing_ec_ref_rx_get(struct snd_kcontrol *kcontrol,
@@ -2919,6 +3017,19 @@ static const struct snd_kcontrol_new slim0_rx_vi_fb_lch_mux =
 	slim0_rx_vi_fb_lch_mux_enum, spkr_prot_get_vi_lch_port,
 	spkr_prot_put_vi_lch_port);
 
+static const struct snd_kcontrol_new ss_solution_mixer_controls[] = {
+	SOC_SINGLE_MULTI_EXT("SA data", SND_SOC_NOPM, 0, 65535, 0, 19,
+				msm_sec_sa_get, msm_sec_sa_put),
+	SOC_SINGLE_MULTI_EXT("VSP data", SND_SOC_NOPM, 0, 65535, 0, 1,
+				msm_sec_vsp_get, msm_sec_vsp_put),
+	SOC_SINGLE_MULTI_EXT("Audio DHA data", SND_SOC_NOPM, 0, 65535, 0, 13,
+				msm_sec_dha_get, msm_sec_dha_put),
+	SOC_SINGLE_MULTI_EXT("LRSM data", SND_SOC_NOPM, 0, 65535, 0, 2,
+				msm_sec_lrsm_get, msm_sec_lrsm_put),
+	SOC_SINGLE_MULTI_EXT("SA_EP data", SND_SOC_NOPM, 0, 65535, 0, 2,
+				msm_sec_sa_ep_get, msm_sec_sa_ep_put),
+};
+
 static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 	/* Frontend AIF */
 	/* Widget name equals to Front-End DAI name<Need confirmation>,
@@ -3935,6 +4046,10 @@ static int msm_routing_probe(struct snd_soc_platform *platform)
 
 	snd_soc_add_platform_controls(platform, lsm_function,
 				      ARRAY_SIZE(lsm_function));
+
+	snd_soc_add_platform_controls(platform,
+				ss_solution_mixer_controls,
+			ARRAY_SIZE(ss_solution_mixer_controls));
 
 	snd_soc_add_platform_controls(platform,
 				aanc_slim_0_rx_mux,

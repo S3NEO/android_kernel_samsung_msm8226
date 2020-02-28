@@ -11,6 +11,16 @@ menuconfig INPUT_TOUCHSCREEN
 
 if INPUT_TOUCHSCREEN
 
+config TOUCHSCREEN_MMS252
+	tristate "MELFAS MMS252 touchscreen driver"
+	depends on I2C
+	help
+	  Say Y here if you have a MELFAS MMS252 touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called melfas-ts.
 config TOUCHSCREEN_88PM860X
 	tristate "Marvell 88PM860x touchscreen"
 	depends on MFD_88PM860X
@@ -1020,4 +1030,115 @@ config TOUCHSCREEN_GT9XX
 
 source "drivers/input/touchscreen/gt9xx/Kconfig"
 
+config TOUCHSCREEN_MMS144
+	tristate "Melfas MMS144 Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have Melfas MMS144 series I2C touchscreen,
+	   connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mms_ts.
+
+config TOUCHSCREEN_MMS152
+        tristate "Melfas MMS152 I2C Touchscreen"
+        depends on I2C
+        help
+          Say Y here if you have Melfas MMS152 series I2C touchscreen,
+          connected to your system.
+
+          If unsure, say N.
+
+          To compile this driver as a module, choose M here: the
+          module will be called mms_ts.
+
+config TOUCHSCREEN_BCMTCH15XXX
+	tristate "Broadcom 15xxx touchscreen interface"
+	depends on I2C
+	help
+		Say Y here to support the BCMTCH15XXX touchscreen controller on a I2C bus
+		To compile this driver as a module, choose M here: the module will be called bcmtch15xxx.
+
+config TOUCHSCREEN_ZINITIX_BT531
+	tristate "ZINITIX BT531 I2C Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have Zinitix BT531 I2C touchscreen,
+	  such as BT531, connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called BT531.
+
+config TOUCHSCREEN_ZINITIX_BT532
+	tristate "ZINITIX BT532 I2C Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have Zinitix BT532 I2C touchscreen,
+	  such as BT532, connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called BT532.	  
+
+config TOUCHSCREEN_ZINITIX_Q7
+	tristate "ZINITIX BT532 I2C Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have Zinitix BT532 I2C touchscreen,
+	  such as BT532, connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called BT532.
+
+config TOUCHSCREEN_ATMEL_MXTS
+	tristate "ATMEL I2C Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have ATMEL I2C touchscreen,
+	  such as BT532, connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ATMEL.	
+  
+config TOUCHSCREEN_ZINITIX_CRATERQ
+	tristate "ZINITIX BT532 I2C Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have Zinitix BT532 I2C touchscreen,
+	  such as BT532, connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called BT532.	  
+
+config TOUCHSCREEN_FTS
+	tristate "STMicroelectronics i2c multitouch touchscreen with FingerTipS"
+	depends on I2C
+	help
+		Say Y here to enable STMicroelectronics touchscreen support.
+		If unsure, say N.
+		To compile this driver as a module, choose M here: the
+		module will be called STM_ts.
+
+config GLOVE_TOUCH
+	tristate "STMicroelectronics i2c multitouch touchscreen with FingerTipS"
+	depends on I2C
+	help
+		Say Y here to enable STMicroelectronics touchscreen support.
+		If unsure, say N.
+		To compile this driver as a module, choose M here: the
+		module will be called STM_ts.
+
 endif
+
+source "drivers/input/touchscreen/melfas_mms136/Kconfig"

@@ -22,6 +22,22 @@
 #include <mach/msm_bus.h>
 #include <mach/msm_bus_board.h>
 
+
+#ifdef CONFIG_FB_MSM_CAMERA_CSC
+struct mdp_csc_cfg mdp_csc_convert_wideband = {
+	0,
+	{
+		0x0200, 0x0000, 0x02CD,
+		0x0200, 0xFF4F, 0xFE91,
+		0x0200, 0x038B, 0x0000,
+	},
+	{ 0x0, 0xFF80, 0xFF80,},
+	{ 0x0, 0x0, 0x0,},
+	{ 0x0, 0xFF, 0x0, 0xFF, 0x0, 0xFF,},
+	{ 0x0, 0xFF, 0x0, 0xFF, 0x0, 0xFF,},
+};
+#endif
+
 struct mdp_csc_cfg mdp_csc_convert[MDSS_MDP_MAX_CSC] = {
 	[MDSS_MDP_CSC_RGB2RGB] = {
 		0,
@@ -71,6 +87,27 @@ struct mdp_csc_cfg mdp_csc_convert[MDSS_MDP_MAX_CSC] = {
 		{ 0x0, 0xff, 0x0, 0xff, 0x0, 0xff,},
 		{ 0x0, 0xff, 0x0, 0xff, 0x0, 0xff,},
 	},
+};
+struct mdp_pcc_cfg_data pcc_reverse = {
+	.block = MDP_LOGICAL_BLOCK_DISP_0,
+	.ops = MDP_PP_OPS_WRITE | MDP_PP_OPS_ENABLE,
+	.r = { 0x00007ff8, 0xffff8000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+			0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000},
+	.g = { 0x00007ff8, 0x00000000, 0xffff8000, 0x00000000, 0x00000000, 0x00000000,
+			0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000},
+	.b = { 0x00007ff8, 0x00000000, 0x00000000, 0xffff8000, 0x00000000, 0x00000000,
+			0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000},
+};
+
+struct mdp_pcc_cfg_data pcc_normal = {
+	.block = MDP_LOGICAL_BLOCK_DISP_0,
+	.ops = MDP_PP_OPS_WRITE | MDP_PP_OPS_DISABLE,
+	.r = { 0x00000000, 0x00008000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+			0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000},
+	.g = { 0x00000000, 0x00000000, 0x00008000, 0x00000000, 0x00000000, 0x00000000,
+			0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000},
+	.b = { 0x00000000, 0x00000000, 0x00000000, 0x00008000, 0x00000000, 0x00000000,
+			0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000},
 };
 
 #define CSC_MV_OFF	0x0
@@ -418,7 +455,20 @@ int mdss_mdp_csc_setup(u32 block, u32 blk_idx, u32 tbl_idx, u32 csc_type)
 	pr_debug("csc type=%d blk=%d idx=%d tbl=%d\n", csc_type,
 		 block, blk_idx, tbl_idx);
 
+#ifdef CONFIG_FB_MSM_CAMERA_CSC
+	if (csc_type == MDSS_MDP_CSC_YUV2RGB && !csc_update) 
+	{
+		data = &mdp_csc_convert_wideband;
+		pr_debug("will do mdp_csc_convert_wideband\n");
+	}
+	else
+	{
+		data = &mdp_csc_convert[csc_type];
+		pr_debug("will do mdp_csc_convert(narrow band)\n");
+	}
+#else
 	data = &mdp_csc_convert[csc_type];
+#endif	
 	return mdss_mdp_csc_setup_data(block, blk_idx, tbl_idx, data);
 }
 
@@ -3507,6 +3557,31 @@ int mdss_mdp_calib_mode(struct msm_fb_data_type *mfd,
 	return 0;
 }
 
+void mdss_negative_color(int is_negative_on)
+{
+	u32 copyback;
+	int i;
+	struct mdss_mdp_ctl *ctl;
+	struct mdss_mdp_ctl *ctl_d = NULL;
+	struct mdss_data_type *mdata;
+
+	mdata = mdss_mdp_get_mdata();
+	for (i = 0; i < mdata->nctl; i++) {
+		ctl = mdata->ctl_off + i;
+		if ((ctl->power_on) && (ctl->mfd) && (ctl->mfd->index == 0)) {
+			ctl_d = ctl;
+			break;
+		}
+	}
+	if (ctl_d) {
+		if(is_negative_on)
+			mdss_mdp_pcc_config(&pcc_reverse, &copyback);
+		else
+			mdss_mdp_pcc_config(&pcc_normal, &copyback);
+	} else {
+		pr_info("%s:ctl_d is NULL ", __func__);
+	}
+}
 int mdss_mdp_calib_config_buffer(struct mdp_calib_config_buffer *cfg,
 						u32 *copyback)
 {

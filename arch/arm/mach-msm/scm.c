@@ -17,10 +17,20 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/init.h>
+#ifdef CONFIG_SEC_DEBUG
+#include <mach/sec_debug.h>
+#endif
 
 #include <asm/cacheflush.h>
 
 #include <mach/scm.h>
+
+#include <linux/thread_info.h>
+#include <linux/sched.h>
+#include <linux/string.h>
+#ifdef CONFIG_ARCH_MSM8226
+#include <linux/smp.h>
+#endif
 
 #define SCM_ENOMEM		-5
 #define SCM_EOPNOTSUPP		-4
@@ -153,10 +163,29 @@ static u32 smc(u32 cmd_addr)
 	return r0;
 }
 
+#ifdef CONFIG_ARCH_MSM8226
+static void __wrap_flush_cache_all(void* vp)
+{
+	flush_cache_all();
+}
+#endif
+
 static int __scm_call(const struct scm_command *cmd)
 {
+	int flush_all_need;
+	int call_from_ss_daemon;
 	int ret;
 	u32 cmd_addr = virt_to_phys(cmd);
+
+	/*
+	 * in case of QSEE command
+	 */
+	flush_all_need = ((cmd->id & 0x0003FC00) == (252 << 10));
+
+	/*
+	 * in case of secure_storage_daemon
+	*/
+	call_from_ss_daemon = (strncmp(current_thread_info()->task->comm, "secure_storage_daemon", TASK_COMM_LEN - 1) == 0);
 
 	/*
 	 * Flush the command buffer so that the secure world sees
@@ -164,6 +193,16 @@ static int __scm_call(const struct scm_command *cmd)
 	 */
 	__cpuc_flush_dcache_area((void *)cmd, cmd->len);
 	outer_flush_range(cmd_addr, cmd_addr + cmd->len);
+
+	if (flush_all_need && call_from_ss_daemon) {
+		flush_cache_all();
+
+#ifdef CONFIG_ARCH_MSM8226
+		smp_call_function((void (*)(void *))__wrap_flush_cache_all, NULL, 1);
+#endif
+
+		outer_flush_all();
+	}
 
 	ret = smc(cmd_addr);
 	if (ret < 0)
@@ -226,9 +265,15 @@ static int scm_call_common(u32 svc_id, u32 cmd_id, const void *cmd_buf,
 	if (cmd_buf)
 		memcpy(scm_get_command_buffer(scm_buf), cmd_buf, cmd_len);
 
+#ifdef CONFIG_SEC_DEBUG
+	sec_debug_secure_log(svc_id, cmd_id);
+#endif
 	mutex_lock(&scm_lock);
 	ret = __scm_call(scm_buf);
 	mutex_unlock(&scm_lock);
+#ifdef CONFIG_SEC_DEBUG	
+	sec_debug_secure_log(svc_id, cmd_id);
+#endif
 	if (ret)
 		return ret;
 

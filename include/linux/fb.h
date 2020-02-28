@@ -840,6 +840,10 @@ struct fb_info {
 	atomic_t count;
 	int node;
 	int flags;
+#if defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL) && defined(CONFIG_ESD_ERR_FG_RECOVERY)
+	int esd_active;
+	struct mutex esd_lock;
+#endif
 	struct mutex lock;		/* Lock for open/release/ioctl funcs */
 	struct mutex mm_lock;		/* Lock for fb_mmap and smem_* fields */
 	struct fb_var_screeninfo var;	/* Current var */

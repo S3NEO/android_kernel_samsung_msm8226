@@ -296,7 +296,8 @@ int virt_to_scatterlist(const void *addr, int size, struct scatterlist *sg,
 	int offset;
 	int remainder_of_page;
 
-	sg_init_table(sg, sg_size);
+	if (sg)
+		sg_init_table(sg, sg_size);
 
 	while (size > 0 && i < sg_size) {
 		pg = virt_to_page(addr);
@@ -1550,8 +1551,8 @@ int ecryptfs_read_and_validate_xattr_region(struct dentry *dentry,
  */
 int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 {
-	int rc;
-	char *page_virt;
+	int rc = 0;
+	char *page_virt = NULL;
 	struct inode *ecryptfs_inode = ecryptfs_dentry->d_inode;
 	struct ecryptfs_crypt_stat *crypt_stat =
 	    &ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;

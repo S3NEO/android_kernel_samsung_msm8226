@@ -1220,7 +1220,6 @@ static int __init socinfo_init_sysdev(void)
 
 	msm_soc_device = soc_device_to_device(soc_dev);
 	populate_soc_sysfs_files(msm_soc_device);
-
 	err = sysdev_class_register(&soc_sysdev_class);
 	if (err) {
 		pr_err("%s: sysdev_class_register fail (%d)\n",
@@ -1239,6 +1238,7 @@ static int __init socinfo_init_sysdev(void)
 				ARRAY_SIZE(socinfo_v1_files));
 	if (socinfo->v1.format < 2)
 		goto socinfo_init_err;
+
 
 	socinfo_create_files(&soc_sys_device, socinfo_v2_files,
 				ARRAY_SIZE(socinfo_v2_files));

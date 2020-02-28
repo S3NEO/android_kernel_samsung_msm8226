@@ -149,7 +149,7 @@
 #define CORE_DEBUG_REG_AHB_HTRANS       (3 << 12)
 
 /* 8KB descriptors */
-#define SDHCI_MSM_MAX_SEGMENTS  (1 << 13)
+#define SDHCI_MSM_MAX_SEGMENTS  (1 << 10)
 #define SDHCI_MSM_MMC_CLK_GATE_DELAY	200 /* msecs */
 
 #define CORE_FREQ_100MHZ	(100 * 1000 * 1000)
@@ -2603,6 +2603,46 @@ static struct sdhci_ops sdhci_msm_ops = {
 	.enable_controller_clock = sdhci_msm_enable_controller_clock,
 };
 
+/* SYSFS about SD Card Detection */
+extern struct class *sec_class;
+static struct device *t_flash_detect_dev;
+
+static ssize_t t_flash_detect_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct sdhci_msm_host *msm_host = dev_get_drvdata(dev);
+#ifdef CONFIG_MMC_MSM_CARD_HW_DETECTION
+	unsigned int detect;
+
+	if (gpio_is_valid(msm_host->pdata->status_gpio))
+		detect = gpio_get_value(msm_host->pdata->status_gpio);
+
+	else {
+		pr_info("%s : External  SD detect pin Error\n", __func__);
+		return sprintf(buf, "Error\n");
+	}
+
+	pr_info("%s : detect = %d.\n", __func__, detect);
+	if (!detect) {
+		printk(KERN_DEBUG "sdcc2: card inserted.\n");
+		return sprintf(buf, "Insert\n");
+	} else {
+		printk(KERN_DEBUG "sdcc2: card removed.\n");
+		return sprintf(buf, "Remove\n");
+	}
+#else
+	if (msm_host->mmc->card) {
+		printk(KERN_DEBUG "sdcc2: card inserted.\n");
+		return sprintf(buf, "Insert\n");
+	} else {
+		printk(KERN_DEBUG "sdcc2: card removed.\n");
+		return sprintf(buf, "Remove\n");
+	}
+#endif
+}
+
+static DEVICE_ATTR(status, 0444, t_flash_detect_show, NULL);
+
 static int __devinit sdhci_msm_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
@@ -2874,11 +2914,12 @@ static int __devinit sdhci_msm_probe(struct platform_device *pdev)
 
 	msm_host->mmc->caps2 |= msm_host->pdata->caps2;
 	msm_host->mmc->caps2 |= MMC_CAP2_CORE_RUNTIME_PM;
+/*
 	msm_host->mmc->caps2 |= MMC_CAP2_PACKED_WR;
 	msm_host->mmc->caps2 |= MMC_CAP2_PACKED_WR_CONTROL;
+*/
 	msm_host->mmc->caps2 |= (MMC_CAP2_BOOTPART_NOACC |
 				MMC_CAP2_DETECT_ON_ERR);
-	msm_host->mmc->caps2 |= MMC_CAP2_SANITIZE;
 	msm_host->mmc->caps2 |= MMC_CAP2_CACHE_CTRL;
 	msm_host->mmc->caps2 |= MMC_CAP2_POWEROFF_NOTIFY;
 	msm_host->mmc->caps2 |= MMC_CAP2_CLK_SCALE;
@@ -2902,6 +2943,27 @@ static int __devinit sdhci_msm_probe(struct platform_device *pdev)
 					__func__, ret);
 			goto vreg_deinit;
 		}
+	}
+
+	/* SYSFS about SD Card Detection by soonil.lim */
+#ifdef CONFIG_MMC_MSM_CARD_HW_DETECTION
+	if (t_flash_detect_dev == NULL && gpio_is_valid(msm_host->pdata->status_gpio)) {
+#else
+	if (t_flash_detect_dev == NULL && !strcmp(host->hw_name, "msm_sdcc.2")) {
+#endif
+		printk(KERN_DEBUG "%s : Change sysfs Card Detect\n", __func__);
+
+		t_flash_detect_dev = device_create(sec_class,
+					NULL, 0, NULL, "sdcard");
+		if (IS_ERR(t_flash_detect_dev))
+			pr_err("%s : Failed to create device!\n", __func__);
+
+		if (device_create_file(t_flash_detect_dev,
+			&dev_attr_status) < 0)
+			pr_err("%s : Failed to create device file(%s)!\n",
+					__func__, dev_attr_status.attr.name);
+
+		dev_set_drvdata(t_flash_detect_dev, msm_host);
 	}
 
 	if (dma_supported(mmc_dev(host->mmc), DMA_BIT_MASK(32))) {

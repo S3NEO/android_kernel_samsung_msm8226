@@ -86,6 +86,7 @@ fw-shipped-$(CONFIG_SCSI_QLOGIC_1280) += qlogic/1040.bin qlogic/1280.bin \
 					 qlogic/12160.bin
 fw-shipped-$(CONFIG_SCSI_QLOGICPTI) += qlogic/isp1000.bin
 fw-shipped-$(CONFIG_INFINIBAND_QIB) += qlogic/sd7220.fw
+fw-shipped-$(CONFIG_TOUCHSCREEN_BCMTCH15XXX) += bcm_tsp/bcmtchfw_bin.fw
 fw-shipped-$(CONFIG_SMCTR) += tr_smctr.bin
 fw-shipped-$(CONFIG_SND_KORG1212) += korg/k1212.dsp
 fw-shipped-$(CONFIG_SND_MAESTRO3) += ess/maestro3_assp_kernel.fw \
@@ -140,6 +141,19 @@ fw-shipped-$(CONFIG_USB_SERIAL_XIRCOM) += keyspan_pda/xircom_pgs.fw
 fw-shipped-$(CONFIG_USB_VICAM) += vicam/firmware.fw
 fw-shipped-$(CONFIG_VIDEO_CPIA2) += cpia2/stv0672_vp4.bin
 fw-shipped-$(CONFIG_YAM) += yam/1200.bin yam/9600.bin
+fw-shipped-$(CONFIG_TOUCHSCREEN_MMS252) += tsp_melfas/lt/melfas_yf.fw
+fw-shipped-$(CONFIG_TOUCHSCREEN_MMS252) += tsp_melfas/lt/melfas_wt.fw
+fw-shipped-$(CONFIG_TOUCHSCREEN_MMS252) += tsp_melfas/lt/melfas_ij.fw
+
+fw-shipped-$(CONFIG_TOUCHSCREEN_MMS144) += tsp_melfas/s3/CORE.fw
+fw-shipped-$(CONFIG_TOUCHSCREEN_MMS144) += tsp_melfas/s3/PRIV.fw
+fw-shipped-$(CONFIG_TOUCHSCREEN_MMS144) += tsp_melfas/s3/PUBL.fw
+
+fw-shipped-$(CONFIG_TOUCHSCREEN_ATMEL_MXTS) += tsp_atmel/mxt224s_CS03.fw
+
+fw-shipped-$(CONFIG_TOUCHSCREEN_FTS) += tsp_stm/stm.fw tsp_stm/stm_de.fw
+fw-shipped-$(CONFIG_KEYBOARD_CYPRESS_TKEY_20055) += tkey_cypress/cypress_hl.fw
+fw-shipped-$(CONFIG_EPEN_WACOM_G9PM) += epen/W9001_HL_EUR.bin
 
 fw-shipped-all := $(fw-shipped-y) $(fw-shipped-m) $(fw-shipped-)
 

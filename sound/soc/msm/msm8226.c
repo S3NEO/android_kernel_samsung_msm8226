@@ -17,7 +17,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/mfd/pm8xxx/pm8921.h>
-#include <linux/io.h>
 #include <sound/core.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
@@ -27,10 +26,12 @@
 #include <asm/mach-types.h>
 #include <mach/socinfo.h>
 #include <mach/subsystem_notif.h>
-#include <qdsp6v2/msm-pcm-routing-v2.h>
+#include "qdsp6v2/msm-pcm-routing-v2.h"
 #include "qdsp6v2/q6core.h"
 #include "../codecs/wcd9xxx-common.h"
 #include "../codecs/wcd9306.h"
+#include <linux/io.h>
+#include <linux/err.h>
 
 #define DRV_NAME "msm8226-asoc-tapan"
 
@@ -50,6 +51,9 @@
 #define TAPAN_EXT_CLK_RATE 9600000
 
 #define NUM_OF_AUXPCM_GPIOS 4
+#ifdef CONFIG_MACH_MILLET3G_EUR
+#define SPK_EN_MSM_GPIO 24
+#endif
 
 #define LO_1_SPK_AMP   0x1
 #define LO_2_SPK_AMP   0x2
@@ -148,6 +152,11 @@ static int clk_users;
 static int ext_spk_amp_gpio = -1;
 static int vdd_spkr_gpio = -1;
 static int msm_proxy_rx_ch = 2;
+
+//Enabling the MIC Bias Voltage of Earmic
+#ifdef CONFIG_SAMSUNG_JACK
+static struct snd_soc_jack hs_jack;
+#endif
 
 static int msm_snd_enable_codec_ext_clk(struct snd_soc_codec *codec, int enable,
 					bool dapm)
@@ -327,13 +336,76 @@ static int msm8226_vdd_spkr_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+#ifdef CONFIG_MACH_MILLET3G_EUR
+
+static void msm8226_ext_spk_power_amp_on_ulc83gxx(void)
+{
+	int ret = 0;
+
+	pr_debug(" %s(): ", __func__);
+
+	ret = gpio_request(SPK_EN_MSM_GPIO, "SPK_AMP");
+	if (ret) {
+		pr_err("%s: Error requesting GPIO\n", __func__);
+		return;
+	}
+	gpio_direction_output(SPK_EN_MSM_GPIO, 1);
+
+	pr_debug("%s: slepping 4 ms after turning on external "
+				"Speaker Ampl\n", __func__);
+	usleep_range(4000, 4000);
+
+}
+
+static void msm8226_ext_spk_power_amp_off_ulc83gxx(void)
+{
+	int ret = 0;
+
+	pr_debug(" %s(): ", __func__);
+
+	gpio_direction_output(SPK_EN_MSM_GPIO, 0);
+	gpio_free(SPK_EN_MSM_GPIO);
+	if (ret) {
+	pr_err("%s: Error freeing  GPIO\n", __func__);
+	return;
+	}
+
+	pr_debug("%s: sleeping 4 ms after turning off"
+			" Speaker Ampl\n", __func__);
+	usleep_range(4000, 4000);
+
+}
+
+static int msm8226_spkramp_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *k, int event)
+{
+	printk("%s() %x\n", __func__, SND_SOC_DAPM_EVENT_ON(event));
+
+	if (SND_SOC_DAPM_EVENT_ON(event)) {
+		msm8226_ext_spk_power_amp_on_ulc83gxx();
+	}else
+	{
+		msm8226_ext_spk_power_amp_off_ulc83gxx();
+	}
+	return 0;
+}
+#endif
+
 static const struct snd_soc_dapm_widget msm8226_dapm_widgets[] = {
 
 	SND_SOC_DAPM_SUPPLY("MCLK",  SND_SOC_NOPM, 0, 0,
 	msm8226_mclk_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+#ifdef CONFIG_MACH_MILLET3G_EUR
+	//Enabling the External SPKR
+	SND_SOC_DAPM_SPK("Ext Spk Pos", msm8226_spkramp_event),
+	SND_SOC_DAPM_SPK("Ext Spk Neg", msm8226_spkramp_event),
+#endif
 
 	SND_SOC_DAPM_MIC("Handset Mic", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+#if defined(CONFIG_MACH_MILLET3G_EUR) || defined(CONFIG_MACH_CS03_SGLTE)
+	SND_SOC_DAPM_MIC("Sub Mic", NULL),
+#endif
 	SND_SOC_DAPM_MIC("ANCRight Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("ANCLeft Headset Mic", NULL),
 
@@ -856,8 +928,23 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 
 	snd_soc_dapm_sync(dapm);
 
+#ifdef CONFIG_SAMSUNG_JACK
+// Need to remove this code in future
+// Below lines has been added only because in need to codec ptr in order to enable
+//MIC BIAS2 Internal1 dapm widget of Codec
+
+	err = snd_soc_jack_new(codec, "Headset Jack",
+		(SND_JACK_HEADSET | SND_JACK_OC_HPHL | SND_JACK_OC_HPHR),
+		&hs_jack);
+	if (err) {
+		pr_err("failed to create new jack\n");
+		return err;
+	}
+
+#endif
+
 	codec_clk = clk_get(cpu_dai->dev, "osr_clk");
-	if (codec_clk < 0)
+	if (IS_ERR(codec_clk))
 		pr_err("%s() Failed to get clock for %s\n",
 			   __func__, dev_name(cpu_dai->dev));
 
@@ -870,7 +957,7 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 			__func__, err);
 		return err;
 	}
-
+#ifndef CONFIG_ARCH_MSM8226 //Comment Disable MBHC
 	/* start mbhc */
 	mbhc_cfg.calibration = def_tapan_mbhc_cal();
 	if (mbhc_cfg.calibration) {
@@ -879,6 +966,7 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 		err = -ENOMEM;
 		goto out;
 	}
+#endif
 
 	adsp_state_notifier =
 		subsys_notif_register_notifier("adsp",
@@ -892,8 +980,9 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	tapan_event_register(msm8226_tapan_event_cb, rtd->codec);
+	
+	tapan_register_mclk_cb(codec, msm_snd_enable_codec_ext_clk);
 	return 0;
-
 out:
 	return err;
 }
@@ -1885,6 +1974,51 @@ static int msm8226_prepare_codec_mclk(struct snd_soc_card *card)
 	return 0;
 }
 
+//Enabling the MIC Bias Voltage of Earmic
+#ifdef CONFIG_SAMSUNG_JACK
+
+static struct snd_soc_jack hs_jack;
+
+void msm8226_enable_ear_micbias(bool state)
+{
+	int nRetVal = 0;
+	struct snd_soc_jack *jack = &hs_jack;
+	struct snd_soc_codec *codec;
+	struct snd_soc_dapm_context *dapm;
+	char *str
+#ifdef CONFIG_EXT_EARMIC_BIAS
+		= "Headset Mic";
+#else
+		= "MIC BIAS2 Power External";
+#endif
+
+	printk("%s : str: %s\n", __func__, str);
+
+	if (jack->codec == NULL) { /* audrx_init not yet called */
+		pr_err("%s codec==NULL\n", __func__);
+		return;
+	}
+	codec = jack->codec;
+	dapm = &codec->dapm;
+	mutex_lock(&jack->mutex);
+
+	if (state == 1) {
+		nRetVal = snd_soc_dapm_force_enable_pin(dapm, str);
+		pr_info("%s enable the codec  pin : %d with state :%d\n"
+				, __func__, nRetVal, state);
+	} else{
+		nRetVal = snd_soc_dapm_disable_pin(dapm, str);
+		pr_info("%s disable the codec  pin : %d with state :%d\n"
+				, __func__, nRetVal, state);
+	}
+	snd_soc_dapm_sync(dapm);
+	mutex_unlock(&jack->mutex);
+}
+
+EXPORT_SYMBOL(msm8226_enable_ear_micbias);
+
+#endif
+#ifndef CONFIG_ARCH_MSM8226 //ms01 mbhc not used
 static bool msm8226_swap_gnd_mic(struct snd_soc_codec *codec)
 {
 	struct snd_soc_card *card = codec->card;
@@ -1896,10 +2030,11 @@ static bool msm8226_swap_gnd_mic(struct snd_soc_codec *codec)
 
 	return true;
 }
-
+#endif //CONFIG_ARCH_MSM8226
 static int msm8226_setup_hs_jack(struct platform_device *pdev,
 		struct msm8226_asoc_mach_data *pdata)
 {
+#ifndef CONFIG_ARCH_MSM8226 //ms01 mbhc not used
 	int rc;
 
 	pdata->us_euro_gpio = of_get_named_gpio(pdev->dev.of_node,
@@ -1920,6 +2055,8 @@ static int msm8226_setup_hs_jack(struct platform_device *pdev,
 			mbhc_cfg.swap_gnd_mic = msm8226_swap_gnd_mic;
 		}
 	}
+#endif
+
 	return 0;
 }
 

@@ -28,6 +28,7 @@
 #include "mdss_mdp.h"
 #include "mdss_mdp_formats.h"
 #include "mdss_debug.h"
+#include "dlog.h"
 
 enum {
 	MDP_INTR_VSYNC_INTF_0,
@@ -122,7 +123,6 @@ static inline void mdss_mdp_intr_done(int index)
 	if (fnc)
 		fnc(arg);
 }
-
 irqreturn_t mdss_mdp_isr(int irq, void *ptr)
 {
 	struct mdss_data_type *mdata = ptr;

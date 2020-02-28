@@ -45,4 +45,8 @@
 #define MSM_DEBUG_UART_PHYS	0xF991F000
 #endif
 
+#if defined(CONFIG_MOTOR_DRV_DRV2603)
+#define MSM_MMSS_GP0_BASE 0xFD8C3420
+#endif
+
 #endif

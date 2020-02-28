@@ -400,7 +400,6 @@ static int mdss_dsi_clk_enable(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 		pr_err("%s: Failed to enable dsi pixel clk\n", __func__);
 		goto pixel_clk_err;
 	}
-
 	ctrl_pdata->mdss_dsi_clk_on = 1;
 
 	return rc;
@@ -967,19 +966,26 @@ int mdss_edp_clk_enable(struct mdss_edp_drv_pdata *edp_drv)
 		pr_info("%s: edp clks are already ON\n", __func__);
 		return 0;
 	}
+	#if 0
+	/*
+	 * Skip clock rate set when booted up with continous splash for first time.
+	 * This is to avoid, flickers on display while booting up
+	 * Commenting to resolve the build errors
+	 */
+	if (!ctrl_pdata->panel_data.panel_info.cont_splash_enabled) {
+		if (clk_set_rate(edp_drv->aux_clk, 19200000) < 0)
+			pr_err("%s: aux_clk - clk_set_rate failed\n",
+						__func__);
 
-	if (clk_set_rate(edp_drv->aux_clk, 19200000) < 0)
-		pr_err("%s: aux_clk - clk_set_rate failed\n",
-					__func__);
+		if (clk_set_rate(edp_drv->pixel_clk, 138500000) < 0)
+			pr_err("%s: pixel_clk - clk_set_rate failed\n",
+						__func__);
 
-	if (clk_set_rate(edp_drv->pixel_clk, 138500000) < 0)
-		pr_err("%s: pixel_clk - clk_set_rate failed\n",
-					__func__);
-
-	if (clk_set_rate(edp_drv->link_clk, 270000000) < 0)
-		pr_err("%s: link_clk - clk_set_rate failed\n",
-					__func__);
-
+		if (clk_set_rate(edp_drv->link_clk, 270000000) < 0)
+			pr_err("%s: link_clk - clk_set_rate failed\n",
+						__func__);
+	}
+	#endif
 	ret = clk_enable(edp_drv->aux_clk);
 	if (ret) {
 		pr_err("%s: Failed to enable aux clk\n", __func__);

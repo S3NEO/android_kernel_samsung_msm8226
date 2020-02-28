@@ -2742,7 +2742,6 @@ static inline void venus_hfi_disable_clks(struct venus_hfi_device *device)
 		dprintk(VIDC_ERR, "Invalid params: %p\n", device);
 		return;
 	}
-	mutex_lock(&device->clk_pwr_lock);
 	if (device->clocks_enabled) {
 		for (i = VCODEC_CLK; i < VCODEC_MAX_CLKS; i++) {
 			cl = &device->resources.clock[i];
@@ -2763,7 +2762,6 @@ static inline void venus_hfi_disable_clks(struct venus_hfi_device *device)
 	}
 	device->clocks_enabled = 0;
 	--device->clk_cnt;
-	mutex_unlock(&device->clk_pwr_lock);
 }
 static inline int venus_hfi_enable_clks(struct venus_hfi_device *device)
 {
@@ -3277,7 +3275,9 @@ static int venus_hfi_load_fw(void *dev)
 
 	return rc;
 fail_protect_mem:
+	mutex_lock(&device->clk_pwr_lock);
 	venus_hfi_disable_clks(device);
+	mutex_unlock(&device->clk_pwr_lock);
 fail_enable_clks:
 	subsystem_put(device->resources.fw.cookie);
 fail_load_fw:
@@ -3304,6 +3304,7 @@ static void venus_hfi_unload_fw(void *dev)
 	if (device->resources.fw.cookie) {
 		flush_workqueue(device->vidc_workq);
 		flush_workqueue(device->venus_pm_workq);
+		mutex_lock(&device->clk_pwr_lock);
 		subsystem_put(device->resources.fw.cookie);
 		venus_hfi_interface_queues_release(dev);
 		/* IOMMU operations need to be done before AXI halt.*/
@@ -3314,7 +3315,6 @@ static void venus_hfi_unload_fw(void *dev)
 		if(venus_hfi_halt_axi(device))
 			dprintk(VIDC_WARN, "Failed to halt AXI\n");
 		venus_hfi_disable_clks(device);
-		mutex_lock(&device->clk_pwr_lock);
 		regulator_disable(device->gdsc);
 		device->power_enabled = 0;
 		--device->pwr_cnt;

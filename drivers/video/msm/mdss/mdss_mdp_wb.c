@@ -26,7 +26,7 @@
 #include "mdss_mdp.h"
 #include "mdss_fb.h"
 #include "mdss_wb.h"
-
+#include "dlog.h"
 
 enum mdss_mdp_wb_state {
 	WB_OPEN,
@@ -410,7 +410,6 @@ static int mdss_mdp_wb_queue(struct msm_fb_data_type *mfd,
 		node = get_local_node(wb, data);
 	if (node == NULL)
 		node = get_user_node(mfd, data);
-
 	if (!node || node->state == IN_BUSY_QUEUE ||
 	    node->state == IN_FREE_QUEUE) {
 		pr_err("memory not registered or Buffer already with us\n");
@@ -483,7 +482,7 @@ int mdss_mdp_wb_kickoff(struct msm_fb_data_type *mfd)
 	struct mdss_mdp_wb_data *node = NULL;
 	int ret = 0;
 	struct mdss_mdp_writeback_arg wb_args;
-
+	__DLOG__(mfd->fbi->node);
 	if (!ctl->power_on)
 		return 0;
 
@@ -560,6 +559,7 @@ int mdss_mdp_wb_set_mirr_hint(struct msm_fb_data_type *mfd, int hint)
 	default:
 		return -EINVAL;
 	}
+	__DLOG__(mfd->fbi->node, hint);
 }
 
 int mdss_mdp_wb_get_format(struct msm_fb_data_type *mfd,
@@ -698,7 +698,7 @@ int msm_fb_writeback_start(struct fb_info *info)
 
 	if (!mfd)
 		return -ENODEV;
-
+	__DLOG__(info->node);
 	return mdss_mdp_wb_start(mfd);
 }
 EXPORT_SYMBOL(msm_fb_writeback_start);

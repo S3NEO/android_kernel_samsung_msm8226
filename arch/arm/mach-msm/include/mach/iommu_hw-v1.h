@@ -16,17 +16,21 @@
 #define CTX_SHIFT  12
 #define CTX_OFFSET 0x8000
 
+#define CTX_REG(reg, base, ctx) \
+	((base) + CTX_OFFSET + (reg) + ((ctx) << CTX_SHIFT))
+
 #define GET_GLOBAL_REG(reg, base) (readl_relaxed((base) + (reg)))
 #define GET_CTX_REG(reg, base, ctx) \
-	(readl_relaxed((base) + CTX_OFFSET + (reg) + ((ctx) << CTX_SHIFT)))
+	(readl_relaxed(CTX_REG(reg, base,ctx)))
+
 #define GET_CTX_REG_L(reg, base, ctx) \
 	(readll_relaxed((base) + CTX_OFFSET + (reg) + ((ctx) << CTX_SHIFT)))
 
 #define SET_GLOBAL_REG(reg, base, val)	writel_relaxed((val), ((base) + (reg)))
 
 #define SET_CTX_REG(reg, base, ctx, val) \
-	writel_relaxed((val), \
-		((base) + CTX_OFFSET + (reg) + ((ctx) << CTX_SHIFT)))
+	writel_relaxed((val), CTX_REG(reg, base,ctx))
+
 
 /* Wrappers for numbered registers */
 #define SET_GLOBAL_REG_N(b, n, r, v) SET_GLOBAL_REG((b), ((r) + (n << 2)), (v))

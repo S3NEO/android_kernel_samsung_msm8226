@@ -20,3 +20,97 @@ config FB_MSM_MDSS_HDMI_MHL_SII8334
 	  Support the HDMI to MHL conversion.
 	  MHL (Mobile High-Definition Link) technology
 	  uses USB connector to output HDMI content
+
+config MDNIE_VIDEO_ENHANCED
+	bool "MDNIe video enhanced tuning"
+	default n
+config FB_MSM_MDSS_DSI_CTRL_STATUS
+	tristate "DSI controller status check feature"
+	---help---
+	  Check DSI controller status periodically (default period is 5
+	  seconds) by sending Bus-Turn-Around (BTA) command. If DSI controller
+	  fails to acknowledge the BTA command, it sends PANEL_ALIVE=0 status
+	  to HAL layer to reset the controller.
+	  
+config MDNIE_LITE_TUNING
+	bool "MDNIe lite panel tuning"
+	default n
+
+config FB_MSM_MDSS_SHARP_HD_PANEL
+	bool "MDSS SHARP HD Panel"
+	default n
+	---help---
+	The MDSS SHARP LCD Panel support
+
+config FB_MSM_MDSS_MAGNA_WVGA_PANEL
+	bool "MDSS MAGNA WVGA Panel"
+	default n
+	---help---
+	The MDSS MAGNA LCD Panel support
+	
+config FB_MSM_MDSS_HX8369B_WVGA_PANEL
+	bool "MDSS HX8369B WVGA Panel"
+	default n
+	---help---
+	The MDSS HX8369B LCD Panel support
+	
+config BACKLIGHT_IC_KTD253
+	bool "BACKLIGHT IC KTD253"
+	default n
+	---help---
+	The BACKLIGHT IC KTD253 support
+	
+config FB_MSM_MDSS_MAGNA_OCTA_720P_PANEL
+	bool "MDSS MAGNA OCTA 720P Panel"
+	default n
+	---help---
+	The MDSS MAGNA OCTA Panel support
+	
+config FB_MSM_MDSS_S6E8AA0A_HD_PANEL
+	bool "MDSS S6E8AA0A HD Panel"
+	default n
+	---help---
+	The MDSS S6E8AA0A LCD Panel support
+
+config FB_MSM_MDSS_HIMAX_QHD_PANEL
+	bool "MDSS HIMAX QHD Panel"
+	default n
+	---help---
+	The MDSS HIMAX LCD Panel support
+	
+config FB_MSM_MDSS_BOE_WXGA_PANEL
+	bool "MDSS BOE WXGA Panel"
+	default n
+	---help---
+	The MDSS BOE LCD Panel support
+	
+config ESD_ERR_FG_RECOVERY
+	bool "ESD Feature"
+	default n
+
+config FB_MSM_MDSS_SDC_WXGA_PANEL
+	bool "MDSS SDC WXGA Panel"
+	default n
+	---help---
+	The MDSS SDC LCD Panel support
+
+config LCD_CONNECTION_CHECK
+	bool "check if LCD connected or not and detect panel vendor"
+	default n
+
+config SAMSUNG_DEBUG_DISPLAY 
+	bool "Add Samsung Debugging code"
+	default n
+
+config FB_MSM_MDSS_KTD3102_BACKLIGHT
+	bool "MDSS KTD3102 Backlight IC"
+	default n
+	
+config FB_MSM_MDSS_BOE_HD_PANEL
+	bool "MDSS BOE HD Panel"
+	default n
+	---help---
+	The MDSS BOE LCD Panel support
+config TCON_MDNIE_LITE
+	bool "Tcon MDNIe lite support"
+	default n	

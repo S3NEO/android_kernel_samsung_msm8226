@@ -1122,7 +1122,10 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 
 		open.topology_id = topology;
 		if ((open.topology_id == VPM_TX_SM_ECNS_COPP_TOPOLOGY) ||
-			(open.topology_id == VPM_TX_DM_FLUENCE_COPP_TOPOLOGY))
+			(open.topology_id == VPM_TX_DM_FLUENCE_COPP_TOPOLOGY) ||
+			/* LVVE for Barge-in */
+			  (open.topology_id == 0x1000BFF0) ||
+			  (open.topology_id == 0x1000BFF1))
 				rate = 16000;
 
 		if (perf_mode) {

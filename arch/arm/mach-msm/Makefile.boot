@@ -99,34 +99,106 @@ endif
 
 # MSM8226
    zreladdr-$(CONFIG_ARCH_MSM8226)	:= 0x00008000
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sim.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-fluid.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v1-cdp.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v1-mtp.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v1-qrd-evt.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v1-qrd-dvt.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-720p-cdp.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-1080p-cdp.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-720p-mtp.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-1080p-mtp.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-qrd-evt.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-qrd-dvt.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-720p-cdp.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-1080p-cdp.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-720p-mtp.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-1080p-mtp.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-qrd.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-qrd-skug.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v1-qrd-skuf.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-qrd-skuf.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= apq8026-v1-xpm.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= apq8026-v1-cdp.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= apq8026-v1-mtp.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= apq8026-v2-xpm.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= apq8026-v2-720p-cdp.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= apq8026-v2-1080p-cdp.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= apq8026-v2-720p-mtp.dtb
-	dtb-$(CONFIG_ARCH_MSM8226)	+= apq8026-v2-1080p-mtp.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sim.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-fluid.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v1-cdp.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v1-mtp.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v1-qrd-evt.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v1-qrd-dvt.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-cdp.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-mtp.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-qrd-evt.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-qrd-dvt.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-cdp.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-mtp.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v1-qrd-skuf.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-qrd-skuf.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= apq8026-v1-xpm.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= apq8026-v1-cdp.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= apq8026-v1-mtp.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= apq8026-v2-xpm.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= apq8026-v2-cdp.dtb
+#        dtb-$(CONFIG_ARCH_MSM8226)	+= apq8026-v2-mtp.dtb
+#	 dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v1-mtp-r01.dtb
+ifeq ($(CONFIG_MACH_MS01),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-ms013geur-r00.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-ms013geur-r01.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-ms013geur-r02.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-ms013geur-r03.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)  += msm8226-sec-ms013geur-r04.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)  += msm8226-sec-ms013geur-r05.dtb
+else ifeq ($(CONFIG_MACH_MS01_CHN_CTC),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-ms013gctc-r00.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-ms013gctc-r01.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-ms013gctc-r02.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-ms013gctc-r03.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-ms013gctc-r04.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-ms013gctc-r05.dtb
+else ifeq ($(CONFIG_MACH_MS01_CHN_CMCC_3G),y)
+        dtb-$(CONFIG_ARCH_MSM8226)	+= msm8626-ms01-cmcc-r00.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8626-ms01-cmcc-r01.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8626-ms01-cmcc-r02.dtb
+else ifeq ($(CONFIG_MACH_CRATERVE),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-craterve3gctc-r00.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-craterve3gctc-r01.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-craterve3gctc-r02.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-craterve3gctc-r03.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-craterve3gctc-r04.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-craterve3gctc-r05.dtb
+else ifeq ($(CONFIG_MACH_CRATERQ),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-craterq3g-r00.dtb
+else ifeq ($(CONFIG_MACH_CT01),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-ct013g-r00.dtb
+else ifeq ($(CONFIG_MACH_S3VE),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-s3ve013g-r00.dtb
+else ifeq ($(CONFIG_MACH_S3VECTC),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-s3vectc3g-r00.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-s3vectc3g-r01.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-s3vectc3g-r03.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-s3vectc3g-r04.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-s3vectc3g-r05.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-s3vectc3g-r06.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-s3vectc3g-r07.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-s3vectc3g-r08.dtb
+else ifeq ($(CONFIG_MACH_MILLET3G_EUR),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-sec-millet3geur-r00.dtb
+else ifeq ($(CONFIG_MACH_MS01_CHN_SGLTE),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-ms01sgltechn-r00.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-ms01sgltechn-r03.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-ms01sgltechn-r05.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-ms01sgltechn-r08.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-ms01sgltechn-r09.dtb
+else ifeq ($(CONFIG_MACH_HLITE_CHN_SGLTE),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-hlitesgltechn-r00.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-hlitesgltechn-r01.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-hlitesgltechn-r02.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-hlitesgltechn-r03.dtb
+else ifeq ($(CONFIG_MACH_MS01_LTE),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-ms01lteeur-r00.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-ms01lteeur-r03.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-ms01lteeur-r05.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-ms01lteeur-r08.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-ms01lteeur-r09.dtb
+else ifeq ($(CONFIG_MACH_CS03_SGLTE),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-cs03sgltechn-r00.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-cs03sgltechn-r03.dtb
+else ifeq ($(CONFIG_MACH_Q7_CHN_SGLTE),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-q7sgltechn-r00.dtb
+else ifeq ($(CONFIG_MACH_VICTOR_CHN_SGLTE),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-victorsgltechn-r00.dtb
+else ifeq ($(CONFIG_MACH_VICTOR_CHN_SGLTE_CU),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-victorsgltechncu-r00.dtb
+
+else ifeq ($(CONFIG_MACH_S3NEO_LTE),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-s3neolteeur-r00.dtb
+else ifeq($(CONFIG_MACH_MS01_LTE_KOR),y)
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-ms01ltekor-r00.dtb	
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-ms01ltekor-r06.dtb	
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-ms01ltekor-r07.dtb	
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-ms01ltekor-r08.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-ms01ltekor-r09.dtb
+		dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-sec-ms01ltekor-r10.dtb
+endif
 
 # FSM9XXX
    zreladdr-$(CONFIG_ARCH_FSM9XXX)	:= 0x10008000

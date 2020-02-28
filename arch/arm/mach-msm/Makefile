@@ -275,7 +275,38 @@ obj-$(CONFIG_MACH_MSM8930_MTP) += board-8930-all.o board-8930-regulator-pm8038.o
 obj-$(CONFIG_MACH_MSM8930_FLUID) += board-8930-all.o board-8930-regulator-pm8038.o board-8930-regulator-pm8917.o
 obj-$(CONFIG_PM8921_BMS) += bms-batterydata.o bms-batterydata-desay.o batterydata-lib.o
 obj-$(CONFIG_QPNP_BMS) += bms-batterydata.o bms-batterydata-desay.o batterydata-lib.o
-obj-$(CONFIG_QPNP_BMS) += bms-batterydata-oem.o bms-batterydata-qrd-4v35-2000mah.o bms-batterydata-qrd-4v2-1300mah.o
+ifdef CONFIG_MACH_HLITE_CHN_SGLTE
+obj-$(CONFIG_QPNP_BMS) += bms-batterydata-hllte-3100mAh.o bms-batterydata-qrd-4v35-2000mah.o bms-batterydata-qrd-4v2-1300mah.o
+endif
+ifdef CONFIG_MACH_CT01_CHN_CU
+obj-$(CONFIG_QPNP_BMS) += bms-batterydata-ct01.o bms-batterydata-qrd-4v35-2000mah.o bms-batterydata-qrd-4v2-1300mah.o
+else
+	ifdef CONFIG_MACH_S3VE_CHN_OPEN
+		obj-$(CONFIG_QPNP_BMS) += bms-batterydata-S3lite-2100mAh.o bms-batterydata-qrd-4v35-2000mah.o bms-batterydata-qrd-4v2-1300mah.o
+	else
+			ifdef CONFIG_MACH_CS03_SGLTE
+				obj-$(CONFIG_QPNP_BMS) += bms-batterydata-CS03Q-2000mAh.o bms-batterydata-qrd-4v35-2000mah.o bms-batterydata-qrd-4v2-1300mah.o
+			else
+				ifdef CONFIG_MACH_S3VE_CHN_CTC
+					obj-$(CONFIG_QPNP_BMS) += bms-batterydata-S3lite-2100mAh.o bms-batterydata-qrd-4v35-2000mah.o bms-batterydata-qrd-4v2-1300mah.o
+				else
+					obj-$(CONFIG_QPNP_BMS) += bms-batterydata-samsung-2600.o bms-batterydata-qrd-4v35-2000mah.o bms-batterydata-qrd-4v2-1300mah.o
+				endif
+			endif
+	endif
+endif
+ifdef CONFIG_MACH_Q7_CHN_SGLTE
+obj-$(CONFIG_QPNP_BMS) += bms-batterydata-q7-3200mAh.o bms-batterydata-qrd-4v35-2000mah.o bms-batterydata-qrd-4v2-1300mah.o
+endif
+ifdef CONFIG_MACH_VICTOR_CHN_SGLTE
+obj-$(CONFIG_QPNP_BMS) += bms-batterydata-CS03Q-2000mAh.o bms-batterydata-qrd-4v35-2000mah.o bms-batterydata-qrd-4v2-1300mah.o
+endif
+ifdef CONFIG_MACH_CRATERVE_CHN_CTC
+obj-$(CONFIG_QPNP_BMS) += bms-batterydata-craterve-2600.o bms-batterydata-qrd-4v35-2000mah.o bms-batterydata-qrd-4v2-1300mah.o
+endif
+ifdef CONFIG_MACH_VICTOR_CHN_SGLTE_CU
+obj-$(CONFIG_QPNP_BMS) += bms-batterydata-CS03Q-2000mAh.o bms-batterydata-qrd-4v35-2000mah.o bms-batterydata-qrd-4v2-1300mah.o
+endif
 obj-$(CONFIG_MACH_APQ8064_CDP) += board-8064-all.o board-8064-regulator.o
 obj-$(CONFIG_MACH_APQ8064_MTP) += board-8064-all.o board-8064-regulator.o
 obj-$(CONFIG_MACH_APQ8064_LIQUID) += board-8064-all.o board-8064-regulator.o
@@ -392,6 +423,7 @@ obj-$(CONFIG_ARCH_MSM7X30) += board-msm7x30-regulator.o
 obj-$(CONFIG_ARCH_MSM7X27A) += board-msm7x27a-regulator.o
 endif
 
+obj-$(CONFIG_SEC_DEBUG) += sec_debug.o sec_gaf.o sec_getlog.o
 obj-$(CONFIG_ARCH_MSM8960) += mdm2.o mdm_common.o
 obj-$(CONFIG_MSM_RTB) += msm_rtb.o
 obj-$(CONFIG_MSM_CACHE_ERP) += cache_erp.o
@@ -402,6 +434,13 @@ obj-$(CONFIG_MSM_HSIC_SYSMON) += hsic_sysmon.o
 obj-$(CONFIG_MSM_HSIC_SYSMON_TEST) += hsic_sysmon_test.o
 
 obj-$(CONFIG_MSM_RPM_SMD) += rpm-smd.o
+obj-$(CONFIG_USB_SWITCH_TSU6721) += sec-switch.o
+obj-$(CONFIG_USB_SWITCH_RT8973) += sec-switch.o
+obj-$(CONFIG_SM5502_MUIC) += sec-switch.o
+obj-$(CONFIG_MFD_MAX77693) += sec-switch_max77693.o
+obj-$(CONFIG_DI_MUIC) += sec-switch_max77693_di.o
+obj-$(CONFIG_REGULATOR_MAX77693)+= sec-regulator-max77693.o
+
 obj-$(CONFIG_MSM_CPR) += msm_cpr.o
 obj-$(CONFIG_MSM_VP_REGULATOR) += msm_vp.o
 obj-$(CONFIG_MSM_RPC_PMIC) += pmic.o
@@ -430,3 +469,10 @@ obj-$(CONFIG_CPU_FREQ_MSM) += cpufreq.o
 obj-$(CONFIG_WALL_CLK) += wallclk.o
 obj-$(CONFIG_WALL_CLK_SYSFS) += wallclk_sysfs.o
 obj-$(CONFIG_ARCH_RANDOM) += early_random.o
+
+ifdef CONFIG_MACH_MILLET3G_EUR
+obj-$(CONFIG_BATTERY_SAMSUNG) += board-millet-battery.o
+endif
+ifdef CONFIG_SEC_THERMISTOR
+obj-$(CONFIG_SEC_THERMISTOR) += sec_thermistor.o msm8x26-thermistor.o
+endif

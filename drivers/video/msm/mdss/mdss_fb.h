@@ -106,7 +106,7 @@ struct msm_mdp_interface {
 	int (*on_fnc)(struct msm_fb_data_type *mfd);
 	int (*off_fnc)(struct msm_fb_data_type *mfd);
 	/* called to release resources associated to the process */
-	int (*release_fnc)(struct msm_fb_data_type *mfd);
+	int (*release_fnc)(struct msm_fb_data_type *mfd, bool release_all);
 	int (*kickoff_fnc)(struct msm_fb_data_type *mfd,
 					struct mdp_display_commit *data);
 	int (*ioctl_handler)(struct msm_fb_data_type *mfd, u32 cmd, void *arg);
@@ -161,6 +161,7 @@ struct msm_fb_data_type {
 	int panel_reconfig;
 
 	u32 dst_format;
+	int resume_state;
 	int panel_power_on;
 	struct disp_info_type_suspend suspend;
 
@@ -225,6 +226,11 @@ static inline void mdss_fb_update_notify_update(struct msm_fb_data_type *mfd)
 		mutex_unlock(&mfd->no_update.lock);
 	}
 }
+#ifdef CONFIG_FB_MSM_CAMERA_CSC
+extern u8 prev_csc_update;
+extern u8 csc_update;
+//extern u8 pre_csc_update;
+#endif
 
 int mdss_fb_get_phys_info(unsigned long *start, unsigned long *len, int fb_num);
 void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl);
@@ -232,5 +238,6 @@ void mdss_fb_update_backlight(struct msm_fb_data_type *mfd);
 void mdss_fb_wait_for_fence(struct msm_sync_pt_data *sync_pt_data);
 void mdss_fb_signal_timeline(struct msm_sync_pt_data *sync_pt_data);
 int mdss_fb_register_mdp_instance(struct msm_mdp_interface *mdp);
+void mdss_negative_color(int is_negative_on);
 int mdss_fb_dcm(struct msm_fb_data_type *mfd, int req_state);
 #endif /* MDSS_FB_H */

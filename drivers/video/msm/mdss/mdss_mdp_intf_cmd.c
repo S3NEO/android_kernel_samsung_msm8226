@@ -57,6 +57,7 @@ struct mdss_mdp_cmd_ctx {
 
 struct mdss_mdp_cmd_ctx mdss_mdp_cmd_ctx_list[MAX_SESSIONS];
 
+
 static inline u32 mdss_mdp_cmd_line_count(struct mdss_mdp_ctl *ctl)
 {
 	struct mdss_mdp_mixer *mixer;
@@ -222,7 +223,11 @@ static inline void mdss_mdp_cmd_clk_off(struct mdss_mdp_cmd_ctx *ctx)
 		set_clk_off = 1;
 	spin_unlock_irqrestore(&ctx->clk_lock, flags);
 
-	if (ctx->clk_enabled && set_clk_off) {
+#if defined(CONFIG_LCD_CONNECTION_CHECK)
+	if ((ctx->clk_enabled && set_clk_off) || (is_lcd_attached() == 0)){
+#else
+	if (ctx->clk_enabled && set_clk_off){
+#endif
 		ctx->clk_enabled = 0;
 		mdss_mdp_ctl_intf_event
 			(ctx->ctl, MDSS_EVENT_PANEL_CLK_CTRL, (void *)0);
@@ -501,7 +506,12 @@ int mdss_mdp_cmd_kickoff(struct mdss_mdp_ctl *ctl, void *arg)
 	if (ctx->panel_on == 0) {
 		rc = mdss_mdp_ctl_intf_event(ctl, MDSS_EVENT_UNBLANK, NULL);
 		WARN(rc, "intf %d unblank error (%d)\n", ctl->intf_num, rc);
-
+#if defined(CONFIG_LCD_CONNECTION_CHECK)
+	if (is_lcd_attached() == 0) {
+				pr_err("%s : lcd is not attached..\n",__func__);
+				return 0;
+	}
+#endif
 		ctx->panel_on++;
 
 		rc = mdss_mdp_ctl_intf_event(ctl, MDSS_EVENT_PANEL_ON, NULL);

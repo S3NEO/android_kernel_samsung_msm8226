@@ -33,6 +33,7 @@
 #include "mdss_fb.h"
 #include "mdss_mdp.h"
 #include "mdss_mdp_rotator.h"
+#include "dlog.h"
 
 #define VSYNC_PERIOD 16
 #define BORDERFILL_NDX	0x0BF000BF
@@ -42,6 +43,9 @@
 #define PP_CLK_CFG_OFF 0
 #define PP_CLK_CFG_ON 1
 
+#ifdef CONFIG_FB_MSM_CAMERA_CSC
+u8 pre_csc_update = 0xFF;
+#endif
 #define MEM_PROTECT_SD_CTRL 0xF
 
 struct sd_ctrl_req {
@@ -839,15 +843,13 @@ static int mdss_mdp_overlay_start(struct msm_fb_data_type *mfd)
 					rc = 0;
 				}
 			}
+		}
 
 			/* Add all the handed off pipes to the cleanup list */
-			__mdss_mdp_handoff_cleanup_pipes(mfd,
-				MDSS_MDP_PIPE_TYPE_RGB);
-			__mdss_mdp_handoff_cleanup_pipes(mfd,
-				MDSS_MDP_PIPE_TYPE_VIG);
-			__mdss_mdp_handoff_cleanup_pipes(mfd,
-				MDSS_MDP_PIPE_TYPE_DMA);
-		}
+		__mdss_mdp_handoff_cleanup_pipes(mfd, MDSS_MDP_PIPE_TYPE_RGB);
+		__mdss_mdp_handoff_cleanup_pipes(mfd, MDSS_MDP_PIPE_TYPE_VIG);
+		__mdss_mdp_handoff_cleanup_pipes(mfd, MDSS_MDP_PIPE_TYPE_DMA);
+
 		rc = mdss_mdp_ctl_splash_finish(ctl, mdp5_data->handoff);
 		/*
 		 * Remove the vote for footswitch even if above function
@@ -883,7 +885,8 @@ static void mdss_mdp_overlay_update_pm(struct mdss_overlay_private *mdp5_data)
 
 	activate_event_timer(mdp5_data->cpu_pm_hdl, wakeup_time);
 }
-
+struct mdss_mdp_pipe pipe_dbg[8];
+int pipe_cnt;
 int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 				struct mdp_display_commit *data)
 {
@@ -894,6 +897,7 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 	int ret = 0;
 	int sd_in_pipe = 0;
 
+	int i=0;
 	if (ctl->shared_lock)
 		mutex_lock(ctl->shared_lock);
 
@@ -967,6 +971,13 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 			pipe->mixer = mdss_mdp_mixer_get(tmp,
 					MDSS_MDP_MIXER_MUX_DEFAULT);
 		}
+#ifdef CONFIG_FB_MSM_CAMERA_CSC
+		if (pre_csc_update != csc_update) {
+			if (pipe->type == MDSS_MDP_PIPE_TYPE_VIG)
+				pipe->params_changed = 1;
+		}
+#endif
+
 		if (pipe->back_buf.num_planes) {
 			buf = &pipe->back_buf;
 		} else if (ctl->play_cnt == 0 && pipe->front_buf.num_planes) {
@@ -987,7 +998,14 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 					pipe->num);
 			mdss_mdp_mixer_pipe_unstage(pipe);
 		}
+		pipe_dbg[i++] = *pipe;
 	}
+	pipe_cnt = i;
+
+#ifdef CONFIG_FB_MSM_CAMERA_CSC
+	if (pre_csc_update != csc_update)
+			pre_csc_update = csc_update;
+#endif
 
 	if (mfd->panel.type == WRITEBACK_PANEL)
 		ret = mdss_mdp_wb_kickoff(mfd);
@@ -1103,11 +1121,12 @@ done:
 /**
  * mdss_mdp_overlay_release_all() - release any overlays associated with fb dev
  * @mfd:	Msm frame buffer structure associated with fb device
+ * @release_all: ignore pid and release all the pipes
  *
  * Release any resources allocated by calling process, this can be called
  * on fb_release to release any overlays/rotator sessions left open.
  */
-static int __mdss_mdp_overlay_release_all(struct msm_fb_data_type *mfd)
+static int __mdss_mdp_overlay_release_all(struct msm_fb_data_type *mfd,bool release_all)
 {
 	struct mdss_mdp_pipe *pipe;
 	struct mdss_mdp_rotator_session *rot, *tmp;
@@ -1121,7 +1140,8 @@ static int __mdss_mdp_overlay_release_all(struct msm_fb_data_type *mfd)
 	mutex_lock(&mdp5_data->ov_lock);
 	mutex_lock(&mfd->lock);
 	list_for_each_entry(pipe, &mdp5_data->pipes_used, used_list) {
-		if (!mfd->ref_cnt || (pipe->pid == pid)) {
+	/*To fix Underrun while FS encryption*/ 
+		if (release_all || (pipe->pid == pid)) {
 			unset_ndx |= pipe->ndx;
 			cnt++;
 		}
@@ -1133,6 +1153,8 @@ static int __mdss_mdp_overlay_release_all(struct msm_fb_data_type *mfd)
 		cnt++;
 	}
 
+	pr_debug("release_all=%d mfd->ref_cnt=%d unset_ndx=0x%x cnt=%d\n",release_all, mfd->ref_cnt, unset_ndx, cnt);
+	
 	mutex_unlock(&mfd->lock);
 
 	if (unset_ndx) {
@@ -2367,7 +2389,13 @@ static int mdss_mdp_overlay_off(struct msm_fb_data_type *mfd)
 
 	rc = mdss_mdp_ctl_stop(mdp5_data->ctl);
 	if (rc == 0) {
+#if defined(CONFIG_MACH_S3VE_CHN_CTC) || defined(CONFIG_MACH_CRATERVE_CHN_CTC)
+		mutex_lock(&mfd->lock);
 		__mdss_mdp_overlay_free_list_purge(mfd);
+		mutex_unlock(&mfd->lock);
+#else
+		__mdss_mdp_overlay_free_list_purge(mfd);
+#endif	
 		mdss_mdp_ctl_notifier_unregister(mdp5_data->ctl,
 				&mfd->mdp_sync_pt_data.notifier);
 
@@ -2476,8 +2504,11 @@ static int mdss_mdp_overlay_handoff(struct msm_fb_data_type *mfd)
 	if (rc)
 		pr_err("Failed to handoff smps\n");
 
+#if defined(CONFIG_FB_MSM_MDSS_BOE_HD_PANEL)
+	mdp5_data->handoff = false;
+#else
 	mdp5_data->handoff = true;
-
+#endif
 error:
 	if (rc && ctl) {
 		__mdss_mdp_handoff_cleanup_pipes(mfd, MDSS_MDP_PIPE_TYPE_RGB);
@@ -2651,4 +2682,18 @@ static int mdss_mdp_overlay_fb_parse_dt(struct msm_fb_data_type *mfd)
 	}
 
 	return rc;
+}
+
+void mdss_mdp_underrun_dump_info(void)
+{
+	int i = 0;
+	pr_info(" ============ dump_start =========== \n");
+	for (i = 0; i < pipe_cnt ; i++) {
+		pr_info(" (%d,%d,%x,%x) [%d, %d, %d, %d] -> [%d, %d, %d, %d]\n",
+			pipe_dbg[i].num, pipe_dbg[i].type, pipe_dbg[i].ndx, pipe_dbg[i].flags,
+			pipe_dbg[i].src.x, pipe_dbg[i].src.y, pipe_dbg[i].src.w, pipe_dbg[i].src.h,
+			pipe_dbg[i].dst.x, pipe_dbg[i].dst.y, pipe_dbg[i].dst.w, pipe_dbg[i].dst.h);
+	}
+	mdss_mdp_underrun_clk_info();
+	pr_info(" ============ dump_end =========== \n");
 }

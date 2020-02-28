@@ -932,8 +932,10 @@ kgsl_get_process_private(struct kgsl_device_private *cur_dev_priv)
 
 	private = kgsl_find_process_private(cur_dev_priv);
 
-	if (!private)
+	if (!private) {
+		printk("[DEBUG_KGSL] %s:%d\n", __func__, __LINE__);
 		return NULL;
+	}
 
 	mutex_lock(&private->process_private_mutex);
 
@@ -949,14 +951,20 @@ kgsl_get_process_private(struct kgsl_device_private *cur_dev_priv)
 
 		pt_name = task_tgid_nr(current);
 		private->pagetable = kgsl_mmu_getpagetable(mmu, pt_name);
-		if (private->pagetable == NULL)
+		if (private->pagetable == NULL) {
+			printk("[DEBUG_KGSL] %s:%d\n", __func__, __LINE__);
 			goto error;
+		}
 	}
 
-	if (kgsl_process_init_sysfs(cur_dev_priv->device, private))
+	if (kgsl_process_init_sysfs(cur_dev_priv->device, private)) {
+		printk("[DEBUG_KGSL] %s:%d\n", __func__, __LINE__);
 		goto error;
-	if (kgsl_process_init_debugfs(private))
+	}
+	if (kgsl_process_init_debugfs(private)) {
+		printk("[DEBUG_KGSL] %s:%d\n", __func__, __LINE__);
 		goto error;
+	}
 
 	set_bit(KGSL_PROCESS_INIT, &private->priv);
 
@@ -1129,6 +1137,7 @@ static int kgsl_open(struct inode *inodep, struct file *filep)
 	 */
 	dev_priv->process_priv = kgsl_get_process_private(dev_priv);
 	if (dev_priv->process_priv ==  NULL) {
+		printk("[DEBUG_KGSL] %s:%d\n", __func__, __LINE__);
 		result = -ENOMEM;
 		goto err_stop;
 	}
@@ -1142,10 +1151,11 @@ static int kgsl_open(struct inode *inodep, struct file *filep)
 err_stop:
 	mutex_lock(&device->mutex);
 	device->open_count--;
+	printk("[DEBUG_KGSL] %s:%d, result : %d\n", __func__, __LINE__, result);
 	if (device->open_count == 0) {
 		/* make sure power is on to stop the device */
 		kgsl_pwrctrl_enable(device);
-		result = device->ftbl->stop(device);
+		device->ftbl->stop(device);
 		kgsl_pwrctrl_set_state(device, KGSL_STATE_INIT);
 		atomic_dec(&device->active_cnt);
 	}

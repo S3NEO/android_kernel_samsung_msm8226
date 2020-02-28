@@ -38,7 +38,11 @@
 #define MAX_DST_W		MAX_MIXER_WIDTH
 #define MAX_DST_H		MAX_MIXER_HEIGHT
 #define MAX_PLANES		4
+#ifdef CONFIG_MACH_MS01_LTE_KOR // work around code for dmb/multiwindow downscaling issue
+#define MAX_DOWNSCALE_RATIO	6
+#else
 #define MAX_DOWNSCALE_RATIO	4
+#endif
 #define MAX_UPSCALE_RATIO	20
 #define MAX_DECIMATION		4
 #define MDP_MIN_VBP		4
@@ -456,7 +460,7 @@ void mdss_mdp_hist_irq_disable(u32 irq);
 void mdss_mdp_irq_disable_nosync(u32 intr_type, u32 intf_num);
 int mdss_mdp_set_intr_callback(u32 intr_type, u32 intf_num,
 			       void (*fnc_ptr)(void *), void *arg);
-
+void mdss_mdp_underrun_clk_info(void);
 void mdss_mdp_footswitch_ctrl_splash(int on);
 void mdss_mdp_batfet_ctrl(struct mdss_data_type *mdata, int enable);
 int mdss_mdp_bus_scale_set_quota(u64 ab_quota, u64 ib_quota);

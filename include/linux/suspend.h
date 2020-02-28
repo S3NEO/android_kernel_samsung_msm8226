@@ -9,6 +9,8 @@
 #include <linux/freezer.h>
 #include <asm/errno.h>
 
+extern bool sleep_enter;
+
 #ifdef CONFIG_VT
 extern void pm_set_vt_switch(int);
 #else
@@ -454,3 +456,4 @@ static inline void page_key_write(void *address) {}
 #endif /* !CONFIG_ARCH_SAVE_PAGE_KEYS */
 
 #endif /* _LINUX_SUSPEND_H */
+

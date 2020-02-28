@@ -166,6 +166,7 @@ static int radio_hci_smd_register_dev(struct radio_data *hsmd)
 
 	if (rc < 0) {
 		FMDERR("Cannot open the command channel");
+		kfree(hdev);
 		return -ENODEV;
 	}
 
@@ -173,6 +174,7 @@ static int radio_hci_smd_register_dev(struct radio_data *hsmd)
 
 	if (radio_hci_register_dev(hdev) < 0) {
 		FMDERR("Can't register HCI device");
+		kfree(hdev);
 		return -ENODEV;
 	}
 

@@ -1485,6 +1485,11 @@ static int inode_has_perm(const struct cred *cred,
 	sid = cred_sid(cred);
 	isec = inode->i_security;
 
+	if (unlikely(!isec)){
+		printk(KERN_CRIT "[SELinux] isec is NULL, inode->i_security is already freed. \n");
+		return -EACCES;
+	}
+
 	return avc_has_perm_flags(sid, isec->sid, isec->sclass, perms, adp, flags);
 }
 
@@ -1860,8 +1865,8 @@ static int selinux_binder_transfer_file(struct task_struct *from, struct task_st
 	int rc;
 
 	COMMON_AUDIT_DATA_INIT(&ad, PATH);
-	ad.u.path = file->f_path;
 	ad.selinux_audit_data = &sad;
+	ad.u.path = file->f_path;
 
 	if (sid != fsec->sid) {
 		rc = avc_has_perm(sid, fsec->sid,
@@ -1871,7 +1876,7 @@ static int selinux_binder_transfer_file(struct task_struct *from, struct task_st
 		if (rc)
 			return rc;
 	}
-
+	// Do not apply permission checks to private files.
 	if (unlikely(IS_PRIVATE(inode)))
 		return 0;
 
@@ -3815,6 +3820,11 @@ static int sock_has_perm(struct task_struct *task, struct sock *sk, u32 perms)
 	struct selinux_audit_data sad = {0,};
 	struct lsm_network_audit net = {0,};
 	u32 tsid = task_sid(task);
+
+	if (unlikely(!sksec)){
+		printk(KERN_CRIT "[SELinux] sksec is NULL, socket is already freed. \n");
+		return -EINVAL;
+	}
 
 	if (sksec->sid == SECINITSID_KERNEL)
 		return 0;

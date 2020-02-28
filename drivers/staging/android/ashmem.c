@@ -224,24 +224,33 @@ static ssize_t ashmem_read(struct file *file, char __user *buf,
 
 	/* If size is not set, or set to 0, always return EOF. */
 	if (asma->size == 0)
-		goto out;
+		goto out_unlock;
 
 	if (!asma->file) {
 		ret = -EBADF;
-		goto out;
+		goto out_unlock;
 	}
 
+	mutex_unlock(&ashmem_mutex);
+
+	/*
+	 * asma and asma->file are used outside the lock here.	We assume
+	 * once asma->file is set it will never be changed, and will not
+	 * be destroyed until all references to the file are dropped and
+	 * ashmem_release is called.
+	 */
 	ret = asma->file->f_op->read(asma->file, buf, len, pos);
-	if (ret < 0)
-		goto out;
+	if (ret >= 0) {
+		/** Update backing file pos, since f_ops->read() doesn't */
+		asma->file->f_pos = *pos;
+	}
+	return ret;
 
-	/** Update backing file pos, since f_ops->read() doesn't */
-	asma->file->f_pos = *pos;
-
-out:
+out_unlock:
 	mutex_unlock(&ashmem_mutex);
 	return ret;
 }
+
 
 static loff_t ashmem_llseek(struct file *file, loff_t offset, int origin)
 {

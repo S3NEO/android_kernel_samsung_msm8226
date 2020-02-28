@@ -19,6 +19,7 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
 #include <linux/pm_runtime.h>
+#include <linux/mmc/cd-gpio.h>
 
 #include "core.h"
 #include "bus.h"
@@ -494,7 +495,10 @@ static void sd_update_bus_speed_mode(struct mmc_card *card)
 	if ((card->host->caps & MMC_CAP_UHS_SDR104) &&
 	    (card->sw_caps.sd3_bus_mode & SD_MODE_UHS_SDR104) &&
 	    (card->host->f_max > UHS_SDR104_MIN_DTR)) {
-			card->sd_bus_speed = UHS_SDR104_BUS_SPEED;
+	    	if(card->cid.manfid == 27)
+                        card->sd_bus_speed = UHS_SDR50_BUS_SPEED;
+                else                    
+                        card->sd_bus_speed = UHS_SDR104_BUS_SPEED;
 	} else if ((card->host->caps & MMC_CAP_UHS_DDR50) &&
 		   (card->sw_caps.sd3_bus_mode & SD_MODE_UHS_DDR50) &&
 		    (card->host->f_max > UHS_DDR50_MIN_DTR)) {
@@ -769,6 +773,8 @@ MMC_DEV_ATTR(manfid, "0x%06x\n", card->cid.manfid);
 MMC_DEV_ATTR(name, "%s\n", card->cid.prod_name);
 MMC_DEV_ATTR(oemid, "0x%04x\n", card->cid.oemid);
 MMC_DEV_ATTR(serial, "0x%08x\n", card->cid.serial);
+MMC_DEV_ATTR(caps, "0x%08x\n", (unsigned int)(card->host->caps));
+MMC_DEV_ATTR(caps2, "0x%08x\n", card->host->caps2);
 
 
 static struct attribute *sd_std_attrs[] = {
@@ -784,6 +790,8 @@ static struct attribute *sd_std_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_oemid.attr,
 	&dev_attr_serial.attr,
+	&dev_attr_caps.attr,
+	&dev_attr_caps2.attr,
 	NULL,
 };
 
@@ -1153,6 +1161,7 @@ static int mmc_sd_alive(struct mmc_host *host)
 static void mmc_sd_detect(struct mmc_host *host)
 {
 	int err = 0;
+	int cd_status = mmc_cd_get_status(host);
 #ifdef CONFIG_MMC_PARANOID_SD_INIT
         int retries = 5;
 #endif
@@ -1190,10 +1199,10 @@ static void mmc_sd_detect(struct mmc_host *host)
 	 * if detect fails, the device would be removed anyway;
 	 * the rpm framework would mark the device state suspended.
 	 */
-	if (!err)
+	if (!err && cd_status)
 		mmc_rpm_release(host, &host->card->dev);
 
-	if (err) {
+	if (err || !cd_status) {
 		mmc_sd_remove(host);
 
 		mmc_claim_host(host);

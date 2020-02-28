@@ -160,6 +160,7 @@ int msm_gpiomux_put(unsigned gpio);
  */
 int msm_gpiomux_write(unsigned gpio, enum msm_gpiomux_setting which,
 	struct gpiomux_setting *setting, struct gpiomux_setting *old_setting);
+void msm_gpiomux_read(unsigned gpio, struct gpiomux_setting *val);
 
 /* Architecture-internal function for use by the framework only.
  * This function can assume the following:

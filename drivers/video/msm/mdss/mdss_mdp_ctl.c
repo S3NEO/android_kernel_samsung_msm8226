@@ -21,6 +21,7 @@
 
 #include "mdss_fb.h"
 #include "mdss_mdp.h"
+#include "dlog.h"
 
 /* truncate at 1k */
 #define MDSS_MDP_BUS_FACTOR_SHIFT 10
@@ -28,7 +29,11 @@
 #define MDSS_MDP_BUS_FUDGE_FACTOR_IB(val) (((val) / 2) * 3)
 #define MDSS_MDP_BUS_FUDGE_FACTOR_HIGH_IB(val) (val << 1)
 #define MDSS_MDP_BUS_FUDGE_FACTOR_AB(val) (val << 1)
+#if defined(CONFIG_MACH_S3VE_CHN_CTC)
+#define MDSS_MDP_BUS_FLOOR_BW (4000000000ULL >> MDSS_MDP_BUS_FACTOR_SHIFT)
+#else
 #define MDSS_MDP_BUS_FLOOR_BW (1600000000ULL >> MDSS_MDP_BUS_FACTOR_SHIFT)
+#endif
 
 /* 1.25 clock fudge factor */
 #define MDSS_MDP_CLK_FUDGE_FACTOR(val) (((val) * 5) / 4)
@@ -129,6 +134,12 @@ static void __mdss_mdp_ctrl_perf_ovrd(struct mdss_data_type *mdata,
 	} else {
 		pr_debug("ib quota : %llu bytes", *ib_quota);
 	}
+ #if defined(CONFIG_ARCH_MSM8226)
+	if(ctl->wb_type == MDSS_MDP_WB_CTL_TYPE_LINE) {
+		*ib_quota = 3000000000UL;
+		*ab_quota = 3000000000UL;
+	}
+#endif
 }
 
 static int mdss_mdp_ctl_perf_commit(struct mdss_data_type *mdata, u32 flags)
@@ -226,8 +237,10 @@ int mdss_mdp_perf_calc_pipe(struct mdss_mdp_pipe *pipe,
 		quota *= pipe->src_fmt->bpp;
 
 	rate = pipe->dst.w;
-	if (src_h > pipe->dst.h)
+	if (src_h > pipe->dst.h) {
 		rate = (rate * src_h) / pipe->dst.h;
+		rate *= 3;
+	}
 
 	rate *= v_total * fps;
 	if (mixer->rotator_mode) {
@@ -238,6 +251,11 @@ int mdss_mdp_perf_calc_pipe(struct mdss_mdp_pipe *pipe,
 		perf->ib_quota = (quota / pipe->dst.h) * v_total;
 	}
 	perf->ab_quota = quota;
+	if (src_h > pipe->dst.h && pipe->src_fmt->is_yuv) {
+	struct mdss_data_type *mdata = mixer->ctl->mdata;
+	if (rate > mdata->max_mdp_clk_rate)
+		rate = mdata->max_mdp_clk_rate;
+	}
 	perf->mdp_clk_rate = rate;
 
 	pr_debug("mixer=%d pnum=%d clk_rate=%u bus ab=%u ib=%u\n",
@@ -257,9 +275,15 @@ static void mdss_mdp_perf_mixer_update(struct mdss_mdp_mixer *mixer,
 	int i;
 	u32 max_clk_rate = 0, ab_total = 0, ib_total = 0;
 
+	u32 min_bw;
+
 	*bus_ab_quota = 0;
 	*bus_ib_quota = 0;
 	*clk_rate = 0;
+
+	pinfo = &mixer->ctl->panel_data->panel_info;
+	min_bw = mdss_panel_get_min_bw(pinfo);
+	min_bw >>= MDSS_MDP_BUS_FACTOR_SHIFT;
 
 	if (!mixer->rotator_mode) {
 		if (mixer->type == MDSS_MDP_MIXER_TYPE_INTF) {
@@ -301,6 +325,17 @@ static void mdss_mdp_perf_mixer_update(struct mdss_mdp_mixer *mixer,
 
 	*bus_ab_quota += ab_total;
 	*bus_ib_quota += ib_total;
+
+	/*override in case we fall short of min BW*/
+	if (!mixer->rotator_mode) {
+		if (mixer->type == MDSS_MDP_MIXER_TYPE_INTF) {
+			if((*bus_ab_quota < min_bw) && (min_bw > 0 ))
+				*bus_ab_quota = min_bw;
+			if((*bus_ib_quota < min_bw) && (min_bw > 0))
+				*bus_ib_quota = min_bw;
+			}
+		}
+
 	if (max_clk_rate > *clk_rate)
 		*clk_rate = max_clk_rate;
 
@@ -621,6 +656,7 @@ int mdss_mdp_ctl_splash_finish(struct mdss_mdp_ctl *ctl, bool handoff)
 	default:
 		return 0;
 	}
+	__DLOG__();
 }
 
 static inline int mdss_mdp_set_split_ctl(struct mdss_mdp_ctl *ctl,

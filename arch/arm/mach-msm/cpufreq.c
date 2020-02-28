@@ -33,6 +33,11 @@
 
 #include "acpuclock.h"
 
+#ifdef CONFIG_SEC_DEBUG_VERBOSE_SUMMARY_HTML
+#include <mach/sec_debug.h>
+extern char cpu_state[CONFIG_NR_CPUS][30];
+#endif
+
 struct cpufreq_work_struct {
 	struct work_struct work;
 	struct cpufreq_policy *policy;
@@ -43,7 +48,52 @@ struct cpufreq_work_struct {
 
 static DEFINE_PER_CPU(struct cpufreq_work_struct, cpufreq_work);
 static struct workqueue_struct *msm_cpufreq_wq;
+#ifdef CONFIG_SEC_DVFS
+static unsigned int upper_limit_freq;
+static unsigned int lower_limit_freq;
+static unsigned int cpuinfo_max_freq;
+static unsigned int cpuinfo_min_freq;
 
+unsigned int get_min_lock(void)
+{
+	return lower_limit_freq;
+}
+
+unsigned int get_max_lock(void)
+{
+	return upper_limit_freq;
+}
+
+void set_min_lock(int freq)
+{
+	if (freq <= MIN_FREQ_LIMIT)
+		lower_limit_freq = 0;
+	else if (freq > MAX_FREQ_LIMIT)
+		lower_limit_freq = 0;
+	else
+		lower_limit_freq = freq;
+}
+
+void set_max_lock(int freq)
+{
+	if (freq < MIN_FREQ_LIMIT)
+		upper_limit_freq = 0;
+	else if (freq >= MAX_FREQ_LIMIT)
+		upper_limit_freq = 0;
+	else
+		upper_limit_freq = freq;
+}
+
+int get_max_freq(void)
+{
+	return cpuinfo_max_freq;
+}
+
+int get_min_freq(void)
+{
+	return cpuinfo_min_freq;
+}
+#endif
 struct cpufreq_suspend_t {
 	struct mutex suspend_mutex;
 	int device_suspended;
@@ -81,7 +131,27 @@ static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq)
 			pr_debug("min: limiting freq to %d\n", new_freq);
 		}
 	}
+#ifdef CONFIG_SEC_DVFS
+	if (lower_limit_freq || upper_limit_freq) {
+		unsigned int t_freq = new_freq;
 
+		if (lower_limit_freq && new_freq < lower_limit_freq)
+			t_freq = lower_limit_freq;
+
+		if (upper_limit_freq && new_freq > upper_limit_freq)
+			t_freq = upper_limit_freq;
+
+		new_freq = t_freq;
+
+		if (new_freq < policy->min)
+			new_freq = policy->min;
+		if (new_freq > policy->max)
+			new_freq = policy->max;
+
+		if (new_freq == policy->cur)
+			return 0;
+	}
+#endif
 	freqs.old = policy->cur;
 	freqs.new = new_freq;
 	freqs.cpu = policy->cpu;
@@ -183,6 +253,14 @@ static unsigned int msm_cpufreq_get_freq(unsigned int cpu)
 	return acpuclk_get_rate(cpu);
 }
 
+#ifdef CONFIG_SEC_DEBUG_VERBOSE_SUMMARY_HTML
+static unsigned int msm_cpufreq_get_voltage(unsigned int cpu)
+{
+	return acpuclk_get_voltage(cpu);
+}
+#endif
+
+
 static inline int msm_cpufreq_limits_init(void)
 {
 	int cpu = 0;
@@ -274,7 +352,14 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 	policy->min = CONFIG_MSM_CPU_FREQ_MIN;
 	policy->max = CONFIG_MSM_CPU_FREQ_MAX;
 #endif
-
+#ifdef CONFIG_SEC_DVFS
+	cpuinfo_max_freq = policy->cpuinfo.max_freq;
+	cpuinfo_min_freq = policy->cpuinfo.min_freq;
+	/*For debugging
+	pr_info("cpufreq: cpuinfo_max_freq: %d\n", cpuinfo_max_freq);
+	pr_info("cpufreq: cpuinfo_min_freq: %d\n", cpuinfo_min_freq);
+	*/
+#endif
 	cur_freq = acpuclk_get_rate(policy->cpu);
 	if (cpufreq_frequency_table_target(policy, table, cur_freq,
 	    CPUFREQ_RELATION_H, &index) &&
@@ -309,24 +394,74 @@ static int __cpuinit msm_cpufreq_cpu_callback(struct notifier_block *nfb,
 		unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
-
+	
 	switch (action) {
+#ifdef CONFIG_SEC_DEBUG_VERBOSE_SUMMARY_HTML
+	case CPU_UP_PREPARE:
+		strncpy(cpu_state[cpu], "Coming up", ARRAY_SIZE(cpu_state[cpu]));
+		break;
+	case CPU_UP_PREPARE_FROZEN:
+		strncpy(cpu_state[cpu], "Coming up/TaskFrozen", ARRAY_SIZE(cpu_state[cpu]));
+		break;
+	case CPU_STARTING:
+		strncpy(cpu_state[cpu], "Starting", ARRAY_SIZE(cpu_state[cpu]));
+		break;
+	case CPU_STARTING_FROZEN:
+		strncpy(cpu_state[cpu], "Starting/TaskFrozen", ARRAY_SIZE(cpu_state[cpu]));
+		break;
+#endif
 	case CPU_ONLINE:
+#ifdef CONFIG_SEC_DEBUG_VERBOSE_SUMMARY_HTML
+		strncpy(cpu_state[cpu], "Online", ARRAY_SIZE(cpu_state[cpu]));
+#endif
 	case CPU_ONLINE_FROZEN:
+#ifdef CONFIG_SEC_DEBUG_VERBOSE_SUMMARY_HTML
+		strncpy(cpu_state[cpu], "Online/TaskFrozen", ARRAY_SIZE(cpu_state[cpu]));
+#endif
 		per_cpu(cpufreq_suspend, cpu).device_suspended = 0;
 		break;
 	case CPU_DOWN_PREPARE:
+#ifdef CONFIG_SEC_DEBUG_VERBOSE_SUMMARY_HTML
+		strncpy(cpu_state[cpu], "GoingDown", ARRAY_SIZE(cpu_state[cpu]));
+#endif
 	case CPU_DOWN_PREPARE_FROZEN:
+#ifdef CONFIG_SEC_DEBUG_VERBOSE_SUMMARY_HTML
+		strncpy(cpu_state[cpu], "GoingDown/TaskFrozen", ARRAY_SIZE(cpu_state[cpu]));
+#endif
 		mutex_lock(&per_cpu(cpufreq_suspend, cpu).suspend_mutex);
 		per_cpu(cpufreq_suspend, cpu).device_suspended = 1;
 		mutex_unlock(&per_cpu(cpufreq_suspend, cpu).suspend_mutex);
 		break;
 	case CPU_DOWN_FAILED:
+#ifdef CONFIG_SEC_DEBUG_VERBOSE_SUMMARY_HTML
+		strncpy(cpu_state[cpu], "GoingDownFailed", ARRAY_SIZE(cpu_state[cpu]));
+#endif
 	case CPU_DOWN_FAILED_FROZEN:
+#ifdef CONFIG_SEC_DEBUG_VERBOSE_SUMMARY_HTML
+		strncpy(cpu_state[cpu], "GoingDownFailed/TaskFrozen", ARRAY_SIZE(cpu_state[cpu]));
+#endif
 		per_cpu(cpufreq_suspend, cpu).device_suspended = 0;
 		break;
+#ifdef CONFIG_SEC_DEBUG_VERBOSE_SUMMARY_HTML
+	case CPU_DYING:
+		strncpy(cpu_state[cpu], "Dying", ARRAY_SIZE(cpu_state[cpu]));
+		break;
+	case CPU_DYING_FROZEN:
+		strncpy(cpu_state[cpu], "Dying/TaskFrozen", ARRAY_SIZE(cpu_state[cpu]));
+		break;
+	case CPU_DEAD:
+		strncpy(cpu_state[cpu], "Dead", ARRAY_SIZE(cpu_state[cpu]));
+		break;
+	case CPU_DEAD_FROZEN:
+		strncpy(cpu_state[cpu], "Dead/TaskFrozen", ARRAY_SIZE(cpu_state[cpu]));
+		break;
+#endif
 	}
-
+#ifdef CONFIG_SEC_DEBUG_VERBOSE_SUMMARY_HTML
+	/* save frequency and voltage at this stage */
+	sec_debug_save_cpu_freq_voltage(cpu, SAVE_FREQ, msm_cpufreq_get_freq(cpu));
+	sec_debug_save_cpu_freq_voltage(cpu, SAVE_VOLT, msm_cpufreq_get_voltage(cpu));
+#endif
 	return NOTIFY_OK;
 }
 

@@ -41,6 +41,10 @@ import sys
 
 version = 'build-all.py, version 0.01'
 
+# SS modifications for specific projects
+#  do target specific modifications for new projects here...
+target_prefix = 'msm8226-sec'
+
 build_dir = '../all-kernels'
 make_command = ["vmlinux", "modules", "dtbs"]
 make_env = os.environ
@@ -141,7 +145,17 @@ def build(target):
     print 'Building %s in %s log %s' % (target, dest_dir, log_name)
     if not os.path.isdir(dest_dir):
         os.mkdir(dest_dir)
-    defconfig = 'arch/arm/configs/%s_defconfig' % target
+
+
+    base_defconfig = '%s_defconfig' % target_prefix
+    variant_defconfig = '%s_%s_defconfig' % (target_prefix, target)
+    debug_defconfig = '%s_eng_defconfig' % target_prefix
+    
+    print 'Base defconfig    : %s' % base_defconfig
+    print 'Variant defconfig : %s' % variant_defconfig
+    print 'Debug defconfig   : %s' % debug_defconfig
+
+    defconfig = 'arch/arm/configs/%s' % base_defconfig
     dotconfig = '%s/.config' % dest_dir
     savedefconfig = '%s/defconfig' % dest_dir
     shutil.copyfile(defconfig, dotconfig)
@@ -153,7 +167,12 @@ def build(target):
 
     devnull = open('/dev/null', 'r')
     subprocess.check_call(['make', 'O=%s' % dest_dir,
-        '%s_defconfig' % target], env=make_env, stdin=devnull)
+        'VARIANT_DEFCONFIG=%s' % variant_defconfig,
+        'DEBUG_DEFCONFIG=%s' % debug_defconfig,
+	'SELINUX_DEFCONFIG=selinux_defconfig',
+	'SELINUX_LOG_DEFCONFIG=selinux_log_defconfig',
+	'TIMA_DEFCONFIG=tima_defconfig',
+        '%s' % base_defconfig], env=make_env, stdin=devnull)
     devnull.close()
 
     if not all_options.updateconfigs:

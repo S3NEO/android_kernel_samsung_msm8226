@@ -971,7 +971,7 @@ static void mdp3_ppp_blit_wq_handler(struct work_struct *work)
 			pr_err("%s: mdp3_iommu_enable failed\n", __func__);
 			return;
 		}
-		mdp3_ppp_turnon(mfd, 1);
+		rc = mdp3_ppp_turnon(mfd, 1);
 		if (rc < 0) {
 			mdp3_iommu_disable(MDP3_CLIENT_PPP);
 			mutex_unlock(&ppp_stat->config_ppp_mutex);

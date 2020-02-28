@@ -271,6 +271,10 @@ enomem:
 	return retval;
 }
 
+#ifdef CONFIG_USBIRQ_BALANCING_LTE_HIGHTP
+extern bool is_otg_irq_masked(void);
+#endif
+
 static void rx_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct sk_buff	*skb = req->context;
@@ -341,8 +345,17 @@ clean:
 	list_add(&req->list, &dev->rx_reqs);
 	spin_unlock(&dev->req_lock);
 
+#ifndef CONFIG_USBIRQ_BALANCING_LTE_HIGHTP
 	if (queue)
 		queue_work(uether_wq, &dev->rx_work);
+#else
+	if (queue) {
+		if (is_otg_irq_masked() && likely(cpu_online(1)))
+			queue_work_on(1, system_nrt_wq, &dev->rx_work);
+		else
+			queue_work(system_nrt_wq, &dev->rx_work);
+	}
+#endif
 }
 
 static int prealloc(struct list_head *list, struct usb_ep *ep, unsigned n)

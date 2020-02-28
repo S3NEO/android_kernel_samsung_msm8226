@@ -149,6 +149,10 @@ static const char *cpu_name;
 static const char *machine_name;
 static char __initdata cmd_line[COMMAND_LINE_SIZE];
 struct machine_desc *machine_desc __initdata;
+#ifdef CONFIG_SEC_DEBUG_SUBSYS
+const char *unit_name;
+EXPORT_SYMBOL(unit_name);
+#endif
 
 static char default_command_line[COMMAND_LINE_SIZE] __initdata = CONFIG_CMDLINE;
 static union { char c[4]; unsigned long l; } endian_test __initdata = { { 'l', '?', '?', 'b' } };
@@ -588,6 +592,13 @@ static int __init early_mem(char *p)
 }
 early_param("mem", early_mem);
 
+static int __init msm_hw_rev_setup(char *p)
+{
+	system_rev = memparse(p, NULL);
+			return 0;
+}
+early_param("samsung.board_rev", msm_hw_rev_setup);
+
 static void __init
 setup_ramdisk(int doload, int prompt, int image_start, unsigned int rd_sz)
 {
@@ -944,6 +955,9 @@ void __init setup_arch(char **cmdline_p)
 		mdesc = setup_machine_tags(machine_arch_type);
 	machine_desc = mdesc;
 	machine_name = mdesc->name;
+#ifdef CONFIG_SEC_DEBUG_SUBSYS
+	unit_name = machine_name;
+#endif
 
 	setup_dma_zone(mdesc);
 

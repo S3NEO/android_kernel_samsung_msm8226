@@ -1717,6 +1717,7 @@ static void kmemleak_disable(void)
 		schedule_work(&cleanup_work);
 
 	pr_info("Kernel memory leak detector disabled\n");
+	dump_stack();
 }
 
 /*
@@ -1724,6 +1725,12 @@ static void kmemleak_disable(void)
  */
 static int kmemleak_boot_config(char *str)
 {
+#ifdef CONFIG_DEBUG_KMEMLEAK
+	pr_info("Forcing kmemleak enabled always\n");
+	kmemleak_skip_disable = 1;
+	return 0;
+#endif
+
 	if (!str)
 		return -EINVAL;
 	if (strcmp(str, "off") == 0)
@@ -1855,7 +1862,7 @@ static int __init kmemleak_late_init(void)
 	dentry = debugfs_create_file("kmemleak", S_IRUGO, NULL, NULL,
 				     &kmemleak_fops);
 	if (!dentry)
-		pr_warning("Failed to create the debugfs kmemleak file\n");
+		pr_err("Failed to create the debugfs kmemleak file\n");
 	mutex_lock(&scan_mutex);
 	start_scan_thread();
 	mutex_unlock(&scan_mutex);

@@ -26,8 +26,13 @@
 #include "mdss.h"
 #include "mdss_dsi.h"
 #include "mdss_panel.h"
+#include "dlog.h"
+
+#define DEBUG_CMD 0			/* make it 1 if need to print tx cmds */
 
 #define VSYNC_PERIOD 17
+static unsigned char *dsi_ctrl_base;
+
 
 static struct mdss_dsi_ctrl_pdata *left_ctrl_pdata;
 
@@ -804,6 +809,7 @@ void mdss_dsi_host_init(struct mipi_panel_info *pinfo,
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
+	dsi_ctrl_base = ctrl_pdata->ctrl_base;
 
 	pinfo->rgb_swap = DSI_RGB_SWAP_RGB;
 
@@ -881,8 +887,14 @@ void mdss_dsi_host_init(struct mipi_panel_info *pinfo,
 	/* DSI_COMMAND_MODE_DMA_CTRL */
 	if (ctrl_pdata->shared_pdata.broadcast_enable)
 		MIPI_OUTP(ctrl_pdata->ctrl_base + 0x3C, 0x94000000);
-	else
+	else{
+#if defined(CONFIG_FB_MSM_MDSS_SHARP_HD_PANEL) || defined(CONFIG_FB_MSM_MDSS_S6E8AA0A_HD_PANEL)|| defined(CONFIG_FB_MSM_MDSS_HIMAX_QHD_PANEL) \
+	|| defined(CONFIG_FB_MSM_MDSS_BOE_HD_PANEL)
+		MIPI_OUTP(ctrl_pdata->ctrl_base + 0x3C, 0x10000000);
+#else
 		MIPI_OUTP(ctrl_pdata->ctrl_base + 0x3C, 0x14000000);
+#endif
+		}
 
 	data = 0;
 	if (pinfo->te_sel)
@@ -1519,6 +1531,7 @@ int mdss_dsi_cmds_rx(struct mdss_dsi_ctrl_pdata *ctrl,
 	case DTYPE_ACK_ERR_RESP:
 		pr_debug("%s: rx ACK_ERR_PACLAGE\n", __func__);
 		rp->len = 0;
+		break;
 	case DTYPE_GEN_READ1_RESP:
 	case DTYPE_DCS_READ1_RESP:
 		mdss_dsi_short_read1_resp(rp);
@@ -1532,7 +1545,7 @@ int mdss_dsi_cmds_rx(struct mdss_dsi_ctrl_pdata *ctrl,
 		mdss_dsi_long_read_resp(rp);
 		break;
 	default:
-		pr_warning("%s:Invalid response cmd\n", __func__);
+		pr_err("%s:Invalid response cmd\n", __func__);
 		rp->len = 0;
 	}
 end:
@@ -1546,6 +1559,27 @@ end:
 	return rp->len;
 }
 
+void dumpreg(void)
+{
+	u32 tmp0x0,tmp0x4,tmp0x8,tmp0xc;
+	int i;
+	pr_err("%s: =============DSI Reg DUMP==============\n", __func__);
+	if(dsi_ctrl_base == NULL) {
+		pr_err("%s: dsi_ctrl_base is NULL, Skip dumpreg()!!\n", __func__);
+		return;
+	}
+	for(i=0; i< 91; i++){
+		tmp0x0 = MIPI_INP(dsi_ctrl_base+(i*16)+0x0);
+		tmp0x4 = MIPI_INP(dsi_ctrl_base+(i*16)+0x4);
+		tmp0x8 = MIPI_INP(dsi_ctrl_base+(i*16)+0x8);
+		tmp0xc = MIPI_INP(dsi_ctrl_base+(i*16)+0xc);
+
+		pr_err("[%04x] : %08x %08x %08x %08x\n",i*16, tmp0x0,tmp0x4,tmp0x8,tmp0xc);
+	}
+	pr_err("%s: ============= END ==============\n", __func__);
+}
+
+
 #define DMA_TX_TIMEOUT 200
 
 static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
@@ -1555,6 +1589,16 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 	int domain = MDSS_IOMMU_DOMAIN_UNSECURE;
 	char *bp;
 	unsigned long size, addr;
+
+#if DEBUG_CMD
+		int i;
+		bp = tp->data;
+		pr_info("%s: ", __func__);
+		for (i = 0; i < tp->len; i++)
+			printk("%x ", *bp++);
+		pr_info("\n");
+#endif
+
 
 	bp = tp->data;
 
@@ -1598,9 +1642,23 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 
 	ret = wait_for_completion_timeout(&ctrl->dma_comp,
 				msecs_to_jiffies(DMA_TX_TIMEOUT));
-	if (ret == 0)
+	if (ret == 0){
+#if defined(CONFIG_LCD_CONNECTION_CHECK)
+		if (is_lcd_attached() == 0)
+			ret = -ETIMEDOUT;
+		else {
+			printk("[QCT_TEST] TIME OUT !!\n");
+			dump_stack();
+			dumpreg();
+			ret = -ETIMEDOUT;
+		}
+#else
+		printk("[QCT_TEST] TIME OUT !!\n");
+		dump_stack();
+		dumpreg();
 		ret = -ETIMEDOUT;
-	else
+#endif
+	} else
 		ret = tp->len;
 
 	if (is_mdss_iommu_attached())

@@ -23,7 +23,7 @@ struct mmc_cd_gpio {
 	bool status;
 };
 
-static int mmc_cd_get_status(struct mmc_host *host)
+int mmc_cd_get_status(struct mmc_host *host)
 {
 	int ret = -ENOSYS;
 	struct mmc_cd_gpio *cd = host->hotplug.handler_priv;
@@ -36,6 +36,7 @@ static int mmc_cd_get_status(struct mmc_host *host)
 out:
 	return ret;
 }
+EXPORT_SYMBOL(mmc_cd_get_status);
 
 static irqreturn_t mmc_cd_gpio_irqt(int irq, void *dev_id)
 {

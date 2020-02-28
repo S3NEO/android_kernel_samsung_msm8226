@@ -32,7 +32,7 @@
 
 #define WCD9XXX_REGISTER_START_OFFSET 0x800
 #define WCD9XXX_SLIM_RW_MAX_TRIES 3
-#define SLIMBUS_PRESENT_TIMEOUT 100
+#define SLIMBUS_PRESENT_TIMEOUT 200
 
 #define MAX_WCD9XXX_DEVICE	4
 #define CODEC_DT_MAX_PROP_SIZE   40
@@ -403,6 +403,19 @@ static int wcd9xxx_reset(struct wcd9xxx *wcd9xxx)
 		}
 	}
 	if (wcd9xxx->reset_gpio) {
+		ret = gpio_tlmm_config
+			(GPIO_CFG(wcd9xxx->reset_gpio,
+			0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,
+			GPIO_CFG_8MA), GPIO_CFG_ENABLE);
+		if (ret) {
+			pr_err("%s: Failed to gpio_tlmm_config %d\n", __func__,
+				wcd9xxx->reset_gpio);
+			wcd9xxx->reset_gpio = 0;
+			return ret;
+		}
+		
+		gpio_direction_output(wcd9xxx->reset_gpio, 1);
+		msleep(20);
 		gpio_direction_output(wcd9xxx->reset_gpio, 0);
 		msleep(20);
 		gpio_direction_output(wcd9xxx->reset_gpio, 1);

@@ -4165,7 +4165,11 @@ qpnp_charger_probe(struct spmi_device *spmi)
 	struct spmi_resource *spmi_resource;
 	int rc = 0;
 
-	chip = kzalloc(sizeof *chip, GFP_KERNEL);
+	// TOBE CHANGED: This is workaround, QC will provide a patch.
+	u8 val_bat_reg = 0;
+
+	chip = devm_kzalloc(&spmi->dev,
+			sizeof(struct qpnp_chg_chip), GFP_KERNEL);
 	if (chip == NULL) {
 		pr_err("kzalloc() failed.\n");
 		return -ENOMEM;
@@ -4199,10 +4203,18 @@ qpnp_charger_probe(struct spmi_device *spmi)
 	if (rc)
 		goto fail_chg_enable;
 
-	/*
-	 * Check if bat_if is set in DT and make sure VADC is present
-	 * Also try loading the battery data profile if bat_if exists
-	 */
+
+	// TOBE CHANGED: This is workaround, QC will provide a patch.
+	val_bat_reg = 0;
+	qpnp_chg_write(chip, &val_bat_reg, 0x124A, 1);
+        val_bat_reg = 0x0D;
+        qpnp_chg_write(chip, &val_bat_reg, 0x1248, 1);
+	val_bat_reg = 0xA5;
+        qpnp_chg_write(chip, &val_bat_reg, 0x12D0, 1);
+	val_bat_reg = 0x28;
+	qpnp_chg_write(chip, &val_bat_reg, 0x12E5, 1);
+
+	/* Check if bat_if is set in DT and make sure VADC is present */
 	spmi_for_each_container_dev(spmi_resource, spmi) {
 		if (!spmi_resource) {
 			pr_err("qpnp_chg: spmi resource absent\n");

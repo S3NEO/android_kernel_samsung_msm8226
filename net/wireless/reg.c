@@ -1307,7 +1307,7 @@ static int ignore_request(struct wiphy *wiphy,
 	case NL80211_REGDOM_SET_BY_CORE:
 		return 0;
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
-		if (wiphy->country_ie_pref & NL80211_COUNTRY_IE_IGNORE_CORE)
+                if (wiphy && (wiphy->country_ie_pref & NL80211_COUNTRY_IE_IGNORE_CORE))
 			return -EALREADY;
 
 		last_wiphy = wiphy_idx_to_wiphy(last_request->wiphy_idx);
@@ -1704,6 +1704,12 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	enum environment_cap env = ENVIRON_ANY;
 	struct regulatory_request *request;
 
+        /* Driver does not want the CORE to change the channel
+         * flags based on the country IE of connected BSS
+         */
+        if (wiphy->flags & WIPHY_FLAG_DISABLE_11D_HINT_FROM_CORE)
+                return;
+
 	mutex_lock(&reg_mutex);
 
 	if (unlikely(!last_request))
@@ -1895,8 +1901,18 @@ static void restore_regulatory_settings(bool reset_user)
 	world_alpha2[1] = cfg80211_regdomain->alpha2[1];
 
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+#if 0
 		if (rdev->wiphy.flags & WIPHY_FLAG_CUSTOM_REGULATORY)
 			restore_custom_reg_settings(&rdev->wiphy);
+#else
+		if (rdev->wiphy.flags & WIPHY_FLAG_CUSTOM_REGULATORY &&
+                        !(rdev->wiphy.country_ie_pref & NL80211_COUNTRY_IE_IGNORE_CORE)) {
+                        printk("%s, %d\n", __func__, __LINE__);
+			restore_custom_reg_settings(&rdev->wiphy);
+                } else {
+                        printk("%s, %d, stip restore_custom_reg_settings\n", __func__, __LINE__);
+                }
+#endif
 	}
 
 	mutex_unlock(&reg_mutex);

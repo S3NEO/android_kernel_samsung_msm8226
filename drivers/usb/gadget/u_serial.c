@@ -833,7 +833,7 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 		spin_lock_irq(&port->port_lock);
 
 		if (status) {
-			pr_debug("gs_open: ttyGS%d (%p,%p) no buffer\n",
+			pr_info("gs_open: ttyGS%d (%p,%p) no buffer\n",
 				port->port_num, tty, file);
 			port->openclose = false;
 			goto exit_unlock_port;
@@ -856,14 +856,14 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 	if (port->port_usb) {
 		struct gserial	*gser = port->port_usb;
 
-		pr_debug("gs_open: start ttyGS%d\n", port->port_num);
+		pr_info("gs_open: start ttyGS%d\n", port->port_num);
 		gs_start_io(port);
 
 		if (gser->connect)
 			gser->connect(gser);
 	}
 
-	pr_debug("gs_open: ttyGS%d (%p,%p)\n", port->port_num, tty, file);
+	pr_info("gs_open: ttyGS%d (%p,%p)\n", port->port_num, tty, file);
 
 	status = 0;
 
@@ -899,7 +899,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 		goto exit;
 	}
 
-	pr_debug("gs_close: ttyGS%d (%p,%p) ...\n", port->port_num, tty, file);
+	pr_info("gs_close: ttyGS%d (%p,%p) ...\n", port->port_num, tty, file);
 
 	/* mark port as closing but in use; we can drop port lock
 	 * and sleep if necessary
@@ -937,7 +937,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 
 	port->openclose = false;
 
-	pr_debug("gs_close: ttyGS%d (%p,%p) done!\n",
+	pr_info("gs_close: ttyGS%d (%p,%p) done!\n",
 			port->port_num, tty, file);
 
 	wake_up_interruptible(&port->close_wait);
@@ -1551,7 +1551,7 @@ int gserial_connect(struct gserial *gser, u8 port_num)
 	 * protocol about open/close status (connect/disconnect).
 	 */
 	if (port->open_count) {
-		pr_debug("gserial_connect: start ttyGS%d\n", port->port_num);
+		pr_info("gserial_connect: start ttyGS%d\n", port->port_num);
 		gs_start_io(port);
 		if (gser->connect)
 			gser->connect(gser);

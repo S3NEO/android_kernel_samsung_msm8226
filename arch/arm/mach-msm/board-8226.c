@@ -26,6 +26,7 @@
 #include <linux/memory.h>
 #include <linux/regulator/qpnp-regulator.h>
 #include <linux/msm_tsens.h>
+#include <linux/export.h>
 #include <asm/mach/map.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach/arch.h>
@@ -36,6 +37,12 @@
 #include <mach/restart.h>
 #ifdef CONFIG_ION_MSM
 #include <mach/ion.h>
+#endif
+#ifdef CONFIG_SEC_DEBUG
+#include <mach/sec_debug.h>
+#endif
+#ifdef CONFIG_ANDROID_PERSISTENT_RAM
+#include <linux/persistent_ram.h>
 #endif
 #include <mach/msm_memtypes.h>
 #include <mach/socinfo.h>
@@ -53,6 +60,18 @@
 #include "pm.h"
 #include "modem_notifier.h"
 
+#ifdef CONFIG_PROC_AVC
+#include <linux/proc_avc.h>
+#endif
+
+#if defined(CONFIG_MACH_MS01) || defined(CONFIG_MACH_CRATERVE) || defined(CONFIG_MACH_CT01) || \
+	defined(CONFIG_MACH_S3VE) || defined(CONFIG_MACH_S3VECTC) || defined(CONFIG_MACH_MS01_LTE) || \
+	defined(CONFIG_MACH_CS03_SGLTE) || defined(CONFIG_MACH_CRATERQ) || defined(CONFIG_MACH_MS01_LTE_KOR) || \
+	defined(CONFIG_MACH_MS01_CHN_CMCC_3G) || defined(CONFIG_MACH_BAFFIN2_SGLTE) || defined(CONFIG_MACH_MS01_CHN_CTC) || \
+	defined(CONFIG_MACH_Q7_CHN_SGLTE) || defined(CONFIG_MACH_VICTOR_CHN_SGLTE) || defined(CONFIG_MACH_VICTOR_CHN_SGLTE_CU) || defined(CONFIG_MACH_CRATERVE_CHN_CTC)
+#include <mach/msm8x26-thermistor.h>
+#endif
+
 static struct memtype_reserve msm8226_reserve_table[] __initdata = {
 	[MEMTYPE_SMI] = {
 	},
@@ -64,6 +83,23 @@ static struct memtype_reserve msm8226_reserve_table[] __initdata = {
 	},
 };
 
+#ifdef CONFIG_ANDROID_PERSISTENT_RAM
+/* CONFIG_SEC_DEBUG reserving memory for persistent RAM*/
+#define RAMCONSOLE_PHYS_ADDR 0x1FB00000
+static struct persistent_ram_descriptor per_ram_descs[] __initdata = {
+       {
+               .name = "ram_console",
+               .size = SZ_1M,
+       }
+};
+
+static struct persistent_ram per_ram __initdata = {
+       .descs = per_ram_descs,
+       .num_descs = ARRAY_SIZE(per_ram_descs),
+       .start = RAMCONSOLE_PHYS_ADDR,
+       .size = SZ_1M
+};
+#endif
 static int msm8226_paddr_to_memtype(unsigned int paddr)
 {
 	return MEMTYPE_EBI1;
@@ -103,6 +139,9 @@ static void __init msm8226_reserve(void)
 	reserve_info = &msm8226_reserve_info;
 	of_scan_flat_dt(dt_scan_for_memory_reserve, msm8226_reserve_table);
 	msm_reserve();
+#ifdef CONFIG_ANDROID_PERSISTENT_RAM
+	persistent_ram_early_init(&per_ram);
+#endif
 }
 
 /*
@@ -126,19 +165,67 @@ void __init msm8226_add_drivers(void)
 	else
 		msm_clock_init(&msm8226_clock_init_data);
 	tsens_tm_init_driver();
+#if defined(CONFIG_MACH_MS01) || defined(CONFIG_MACH_CRATERVE) || defined(CONFIG_MACH_CT01) || \
+	defined(CONFIG_MACH_S3VE) || defined(CONFIG_MACH_S3VECTC) || defined(CONFIG_MACH_MS01_LTE) || \
+	defined(CONFIG_MACH_CS03_SGLTE) || defined(CONFIG_MACH_CRATERQ) || defined(CONFIG_MACH_MS01_LTE_KOR) || \
+	defined(CONFIG_MACH_MS01_CHN_CMCC_3G) || defined(CONFIG_MACH_BAFFIN2_SGLTE) || defined(CONFIG_MACH_MS01_CHN_CTC) || \
+	defined(CONFIG_MACH_Q7_CHN_SGLTE) || defined(CONFIG_MACH_VICTOR_CHN_SGLTE) || defined(CONFIG_MACH_VICTOR_CHN_SGLTE_CU) || defined(CONFIG_MACH_CRATERVE_CHN_CTC)
+	platform_device_register(&sec_device_thermistor);
+#endif
 	msm_thermal_device_init();
 }
+
+struct class *sec_class;
+EXPORT_SYMBOL(sec_class);
+
+static void samsung_sys_class_init(void)
+{
+	pr_info("samsung sys class init.\n");
+
+	sec_class = class_create(THIS_MODULE, "sec");
+
+	if (IS_ERR(sec_class)) {
+		pr_err("Failed to create class(sec)!\n");
+		return;
+	}
+
+	pr_info("samsung sys class end.\n");
+};
+
+#if defined(CONFIG_BATTERY_SAMSUNG)
+#if defined(CONFIG_MACH_HLITE_CHN_SGLTE)
+/* Dummy init function for models that use QUALCOMM PMIC PM8226 charger*/
+void __init samsung_init_battery(void)
+{
+	pr_err("%s: Battery init dummy, using PM8226 internal charger \n", __func__);
+};
+#else
+extern void __init samsung_init_battery(void);
+#endif
+#endif
 
 void __init msm8226_init(void)
 {
 	struct of_dev_auxdata *adata = msm8226_auxdata_lookup;
+
+#ifdef CONFIG_SEC_DEBUG
+	sec_debug_init();
+#endif
+
+#ifdef CONFIG_PROC_AVC
+	sec_avc_log_init();
+#endif
 
 	if (socinfo_init() < 0)
 		pr_err("%s: socinfo_init() failed\n", __func__);
 
 	msm8226_init_gpiomux();
 	board_dt_populate(adata);
+	samsung_sys_class_init();
 	msm8226_add_drivers();
+#if defined(CONFIG_BATTERY_SAMSUNG)
+	samsung_init_battery();
+#endif
 }
 
 static const char *msm8226_dt_match[] __initconst = {

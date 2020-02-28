@@ -4115,6 +4115,17 @@ static void dev_seq_printf_stats(struct seq_file *seq, struct net_device *dev)
 		   stats->tx_compressed);
 }
 
+#ifndef CONFIG_MACH_MS01_LTE_KOR
+static void dev_seq_printf_stats_packet(struct seq_file *seq, struct net_device *dev)
+{
+	struct rtnl_link_stats64 temp2;
+	const struct rtnl_link_stats64 *stats2 = dev_get_stats(dev, &temp2);
+
+	seq_printf(seq, "%6s: %llu %llu\n",
+		   dev->name, stats2->rx_bytes, stats2->tx_bytes);
+}
+#endif 
+
 /*
  *	Called from the PROCfs module. This now uses the new arbitrary sized
  *	/proc/net interface to create /proc/net/dev
@@ -4131,7 +4142,14 @@ static int dev_seq_show(struct seq_file *seq, void *v)
 		dev_seq_printf_stats(seq, v);
 	return 0;
 }
-
+#ifndef CONFIG_MACH_MS01_LTE_KOR
+static int dev_seq_show_packet(struct seq_file *seq, void *v)
+{
+	if (v != SEQ_START_TOKEN)
+		dev_seq_printf_stats_packet(seq, v);
+	return 0;
+}
+#endif
 static struct softnet_data *softnet_get_online(loff_t *pos)
 {
 	struct softnet_data *sd = NULL;
@@ -4177,13 +4195,26 @@ static const struct seq_operations dev_seq_ops = {
 	.stop  = dev_seq_stop,
 	.show  = dev_seq_show,
 };
-
+#ifndef CONFIG_MACH_MS01_LTE_KOR
+static const struct seq_operations dev_seq_ops_packet = {
+	.start = dev_seq_start,
+	.next  = dev_seq_next,
+	.stop  = dev_seq_stop,
+	.show  = dev_seq_show_packet,
+};
+#endif
 static int dev_seq_open(struct inode *inode, struct file *file)
 {
 	return seq_open_net(inode, file, &dev_seq_ops,
 			    sizeof(struct seq_net_private));
 }
-
+#ifndef CONFIG_MACH_MS01_LTE_KOR
+static int dev_seq_open1(struct inode *inode, struct file *file)
+{
+	return seq_open_net(inode, file, &dev_seq_ops_packet,
+			    sizeof(struct seq_net_private));
+}
+#endif
 static const struct file_operations dev_seq_fops = {
 	.owner	 = THIS_MODULE,
 	.open    = dev_seq_open,
@@ -4191,7 +4222,15 @@ static const struct file_operations dev_seq_fops = {
 	.llseek  = seq_lseek,
 	.release = seq_release_net,
 };
-
+#ifndef CONFIG_MACH_MS01_LTE_KOR
+static const struct file_operations dev_seq1_fops = {
+	.owner	 = THIS_MODULE,
+	.open    = dev_seq_open1,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_net,
+};
+#endif
 static const struct seq_operations softnet_seq_ops = {
 	.start = softnet_seq_start,
 	.next  = softnet_seq_next,
@@ -4323,6 +4362,10 @@ static int __net_init dev_proc_net_init(struct net *net)
 
 	if (!proc_net_fops_create(net, "dev", S_IRUGO, &dev_seq_fops))
 		goto out;
+#ifndef CONFIG_MACH_MS01_LTE_KOR
+	if (!proc_net_fops_create(net, "packet_data", S_IRUGO, &dev_seq1_fops))
+		goto out;
+#endif
 	if (!proc_net_fops_create(net, "softnet_stat", S_IRUGO, &softnet_seq_fops))
 		goto out_dev;
 	if (!proc_net_fops_create(net, "ptype", S_IRUGO, &ptype_seq_fops))

@@ -375,6 +375,28 @@ config SENSORS_APDS990X
 	   To compile this driver as a module, choose M here: the
 	   module will be called apds990x. If unsure, say N here.
 
+config SAMSUNG_JACK
+	bool "3.5 PI Jack driver for Samsung devices"
+	depends on INPUT
+	default n
+	help
+	 This is 3.5 PI JACK driver for Samsung devies.
+	 sec_jack from samsung driver used for samsung devices.
+
+	 To samsung jack is reviewed and supported in all the
+	 samsung devices.
+config TIMA_LOG
+	tristate "Support for dumping TIMA log"
+	default y
+	help
+	  This option enables support for dumping TIMA log
+
+config TIMA_TEST
+	tristate "Tima Test Suite"
+	default n
+	help
+	  This option enables kernel component of tima test suite
+
 config HMC6352
 	tristate "Honeywell HMC6352 compass"
 	depends on I2C
@@ -502,6 +524,30 @@ config USB_SWITCH_FSA9480
 	  stereo and mono audio, video, microphone and UART data to use
 	  a common connector port.
 
+config USB_SWITCH_TSU6721
+        tristate "TSU6721 USB Switch"
+        depends on I2C
+        help
+          The TSU6721 is a USB port accessory detector and switch.
+          The TSU6721 is fully controlled using I2C and enables USB data,
+          stereo and mono audio, video, microphone and UART data to use
+          a common connector port.
+
+config USB_SWITCH_RT8973
+        tristate "MUIC RT8973"
+        depends on I2C
+        help
+          The RT8973 is a USB port accessory detector and switch.
+          The RT8973 is fully controlled using I2C and enables USB data,
+          stereo and mono audio, video, microphone and UART data to use
+          a common connector port.
+
+config SM5502_MUIC
+	bool "SILICON MITUS MUIC"
+	default n
+	help
+	  This option enables SILICON MITUS MUIC.
+
 config MAX8997_MUIC
 	tristate "MAX8997 MUIC Support"
 	depends on MFD_MAX8997
@@ -509,6 +555,78 @@ config MAX8997_MUIC
 	  If you say yes here you get support for the MUIC device of
 	  Maxim MAX8997 PMIC.
 	  The MAX8997 MUIC is a USB port accessory detector and switch.
+
+
+config USB_SWITCH_MAX77693
+        bool "Using MAX77693 MUIC chip driver"
+	depends on MFD_MAX77693
+        default n
+        help
+          If you say yes here you will get support for the MAX77693 MUIC chip.
+
+config DI_MUIC
+        bool "Using DI MUIC chip driver"
+	depends on MFD_MAX77693
+        default n
+        help
+          If you say yes here you will get support for the MUIC chip for DI.
+
+config MUIC_INIT_DETECT_DELAY
+        int "Init detect delay time in MUIC"
+        depends on MFD_MAX77693
+        default 3000
+        help
+          Amount of init detection delay time on MUIC.
+
+config MUIC_USB_DETECT_DELAY
+        int "USB detect delay time in MUIC"
+        depends on MFD_MAX77693
+        default 17000
+        help
+          Amount of USB detection delay time on MUIC.
+
+config MUIC_MAX77693_DEBUG
+        bool "MUIC MAX77693 DEBUG"
+        depends on MFD_MAX77693 && USE_MUIC
+        default n
+        help
+          for max77693-muic device debugging.
+
+config MUIC_MAX77693_SUPPORT_MHL_CABLE_DETECTION
+        bool "MUIC_MAX77693_SUPPORT_MHL_CABLE_DETECTION"
+        depends on MFD_MAX77693 && USE_MUIC
+        default y
+        help
+          If you say yes here you will get support for the MHL cable
+          detection.
+
+config MUIC_MAX77693_SUPPORT_OTG_AUDIO_DOCK
+        bool "MUIC_MAX77693_SUPPORT_OTG_AUDIO_DOCK"
+        depends on MFD_MAX77693 && USE_MUIC
+        default n
+        help
+          If you say yes here you will get support for the OTG audio dock.
+
+config MUIC_MAX77693_SUPPORT_SMART_DOCK
+        bool "MUIC_MAX77693_SUPPORT_SMART_DOCK"
+        depends on MFD_MAX77693 && USE_MUIC
+        default n
+        help
+          If you say yes here you will get support for the smart dock.
+
+config MUIC_MAX77693_SUPPORT_CAR_DOCK
+        bool "MUIC_MAX77693_SUPPORT_CAR_DOCK"
+        depends on MFD_MAX77693 && USE_MUIC
+        default n
+        help
+          If you say yes here you will get support for the car dock.
+
+config MUIC_MAX77693_SUPPORT_REMOTE_SWITCH
+        bool "MUIC_MAX77693_SUPPORT_REMOTE_SWITCH"
+        depends on MFD_MAX77693 && DI_MUIC
+        default n
+        help
+          If you say yes here you will get support for the remote switch.
 
 config WL127X_RFKILL
 	tristate "Bluetooth power control driver for TI wl127x"
@@ -654,6 +772,16 @@ config USB_HSIC_SMSC_HUB
 	  This adds support for connecting devices like mouse in HSIC
 	  Host mode.
 
+if SEC_DEBUG
+	config SEC_MISC
+	bool "Samsung P series miscellaneous driver"
+	default n
+	---help---
+	  Samsung P series miscellaneous driver
+	  This creates sys fs entries for changing
+	  debug levels. The debug level is stored in
+	  Param partition.
+endif
 config TI_DRV2667
 	tristate "TI's DRV2667 haptic controller support"
 	depends on I2C
@@ -664,6 +792,38 @@ config TI_DRV2667
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ti_drv2667.
+
+config BCM2079X_NFC_I2C
+	tristate "BCM2079X NFC driver for I2C interface"
+	depends on I2C
+	default n
+	help
+	  Say yes if you want BCM2079X Near Field Communication driver.
+	  This is for spi connected version. If unsure, say N here.
+	  To compile this driver as a module, choose m here. The module will
+	  be called bcm2079x-i2c.
+
+config NFC_PN544
+        bool "NXP PN544 NFC Controller Driver"
+        default n
+        help
+          NXP PN544 Near Field Communication controller support.
+
+config NFC_PN547
+        bool "NXP PN547 NFC Controller Driver"
+        default n
+        help
+          NXP PN547 Near Field Communication controller support.
+
+config SEC_NFC_I2C
+	tristate "SEC NFC driver for I2C interface"
+	depends on I2C
+	default n
+	help
+	  Say yes if you want BCM2079X Near Field Communication driver.
+	  This is for spi connected version. If unsure, say N here.
+	  To compile this driver as a module, choose m here. The module will
+	  be called sec-_fc-i2c.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

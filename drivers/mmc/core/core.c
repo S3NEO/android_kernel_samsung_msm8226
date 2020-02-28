@@ -1240,6 +1240,12 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 	if (data->flags & MMC_DATA_WRITE)
 		mult <<= card->csd.r2w_factor;
 
+	/* max time value is 4.2s */
+	if ((card->csd.tacc_ns/1000 * mult) > 4294967)
+		data->timeout_ns = 0xffffffff;
+	else
+		data->timeout_ns = card->csd.tacc_ns * mult;
+
 	data->timeout_ns = card->csd.tacc_ns * mult;
 	data->timeout_clks = card->csd.tacc_clks * mult;
 
@@ -1306,6 +1312,11 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 	if (card->quirks & MMC_QUIRK_INAND_DATA_TIMEOUT) {
 		data->timeout_ns = 4000000000u; /* 4s */
 		data->timeout_clks = 0;
+	}
+	/* Some emmc cards require a longer read/write time */
+	if (card->quirks & MMC_QUIRK_BROKEN_DATA_TIMEOUT) {
+		if (data->timeout_ns <  4000000000u)
+			data->timeout_ns = 4000000000u;	/* 4s */
 	}
 }
 EXPORT_SYMBOL(mmc_set_data_timeout);
@@ -2234,6 +2245,21 @@ static unsigned int mmc_erase_timeout(struct mmc_card *card,
 		return mmc_mmc_erase_timeout(card, arg, qty);
 }
 
+#define UNSTUFF_BITS(resp, start, size)                                        \
+       ({                                                              \
+               const int __size = size;                                \
+               const u32 __mask = (__size < 32 ? 1 << __size : 0) - 1; \
+               const int __off = 3 - ((start) / 32);                   \
+               const int __shft = (start) & 31;                        \
+               u32 __res;                                              \
+                                                                       \
+               __res = resp[__off] >> __shft;                          \
+               if (__size + __shft > 32)                               \
+                       __res |= resp[__off-1] << ((32 - __shft) % 32); \
+               __res & __mask;                                         \
+       })
+
+
 static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 			unsigned int to, unsigned int arg)
 {
@@ -2242,6 +2268,14 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 	unsigned long timeout;
 	int err;
 
+	u32 *resp = card->raw_csd;
+
+	/* For WriteProtection */
+	if (UNSTUFF_BITS(resp, 12, 2)) {
+               printk(KERN_ERR "eMMC set Write Protection mode, Can't be written or erased.");
+               err = -EIO;
+               goto out;
+	}
 	/*
 	 * qty is used to calculate the erase timeout which depends on how many
 	 * erase groups (or allocation units in SD terminology) are affected.
@@ -2332,6 +2366,13 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 			goto out;
 		}
 
+		if (cmd.resp[0] & R1_WP_ERASE_SKIP) {
+			printk(KERN_ERR "error %d requesting status %#x (R1_WP_ERASE_SKIP)\n",
+				err, cmd.resp[0]);
+                	err = -EIO;
+                        goto out;
+                }
+
 		/* Timeout if the device never becomes ready for data and
 		 * never leaves the program state.
 		 */
@@ -2408,6 +2449,14 @@ int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 	if (to <= from)
 		return -EINVAL;
 
+	/* to set the address in 16k (32sectors) */
+	if(arg == MMC_TRIM_ARG) {
+		if ((from % 32) != 0)
+		        from = ((from >> 5) + 1) << 5;
+	        to = (to >> 5) << 5;
+	        if (from >= to)
+		        return 0;
+	}
 	/* 'from' and 'to' are inclusive */
 	to -= 1;
 
@@ -3484,6 +3533,9 @@ int mmc_suspend_host(struct mmc_host *host)
 		}
 	}
 	mmc_bus_put(host);
+
+	if (host->card || host->index == 1)
+		mdelay(50);
 
 	if (!err && !mmc_card_keep_power(host))
 		mmc_power_off(host);

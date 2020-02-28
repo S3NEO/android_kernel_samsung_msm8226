@@ -66,7 +66,7 @@ static int dsi_panel_handler(struct mdss_panel_data *pdata, int enable)
 
 	if (enable) {
 		dsi_ctrl_gpio_request(ctrl_pdata);
-		mdss_dsi_panel_reset(pdata, 1);
+		(ctrl_pdata->panel_data).panel_reset_fn(pdata, 1);
 
 		rc = dsi_cmds_tx_v2(pdata, &dsi_panel_tx_buf,
 					ctrl_pdata->on_cmds.cmds,
@@ -82,8 +82,8 @@ static int dsi_panel_handler(struct mdss_panel_data *pdata, int enable)
 					ctrl_pdata->off_cmds.cmds,
 					ctrl_pdata->off_cmds.cmd_cnt);
 
-		mdss_dsi_panel_reset(pdata, 0);
 		dsi_ctrl_gpio_free(ctrl_pdata);
+		(ctrl_pdata->panel_data).panel_reset_fn(pdata, 0);
 	}
 	return rc;
 }
@@ -274,10 +274,22 @@ static int dsi_parse_vreg(struct device *dev, struct dss_module_power *mp)
 	struct device_node *supply_node = NULL;
 	struct device_node *np = NULL;
 
-	if (!dev || !mp) {
+	if (!mp) {
 		pr_err("%s: invalid input\n", __func__);
 		rc = -EINVAL;
-		goto error;
+
+		return rc;
+	}
+	
+	if (!dev) {
+		pr_err("%s: invalid input\n", __func__);
+		if (mp->vreg_config) {
+			mp->vreg_config = NULL;
+		}
+		rc = -EINVAL;
+		mp->num_vreg = 0;
+
+		return rc;
 	}
 
 	np = dev->of_node;

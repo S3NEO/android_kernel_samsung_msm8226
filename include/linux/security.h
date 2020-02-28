@@ -1673,6 +1673,7 @@ int security_binder_set_context_mgr(struct task_struct *mgr);
 int security_binder_transaction(struct task_struct *from, struct task_struct *to);
 int security_binder_transfer_binder(struct task_struct *from, struct task_struct *to);
 int security_binder_transfer_file(struct task_struct *from, struct task_struct *to, struct file *file);
+
 int security_ptrace_access_check(struct task_struct *child, unsigned int mode);
 int security_ptrace_traceme(struct task_struct *parent);
 int security_capget(struct task_struct *target,

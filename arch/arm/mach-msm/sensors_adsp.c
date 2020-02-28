@@ -38,6 +38,7 @@
 #include <mach/msm_bus.h>
 #include <mach/msm_bus_board.h>
 
+#define CLASS_NAME	"ssc"
 #define DRV_NAME	"sensors"
 #define DRV_VERSION	"1.00"
 
@@ -1076,10 +1077,26 @@ const struct file_operations sensors_adsp_fops = {
 	.unlocked_ioctl = sensors_adsp_ioctl,
 };
 
+ struct class* get_adsp_sensor_class( void )
+{
+
+pr_err("renju %s:",__func__);
+if (sns_ctl.dev_class == NULL) {
+		sns_ctl.dev_class = class_create(THIS_MODULE, DRV_NAME);
+		if (sns_ctl.dev_class == NULL) {
+			pr_err("%s: class_create fail.\n", __func__);
+	}
+}
+
+return sns_ctl.dev_class;
+}
+
+EXPORT_SYMBOL(get_adsp_sensor_class);
+
 static int sensors_adsp_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	sns_ctl.dev_class = class_create(THIS_MODULE, DRV_NAME);
+	sns_ctl.dev_class = class_create(THIS_MODULE, CLASS_NAME);
 	if (sns_ctl.dev_class == NULL) {
 		pr_err("%s: class_create fail.\n", __func__);
 		goto res_err;

@@ -1,0 +1,66 @@
+
+config SENSORS_CORE
+         bool "sensors_core"
+         depends on I2C
+
+config SENSORS_K2HH
+	depends on I2C
+	tristate "SENSORS_K2HH"
+	default n
+	help
+	  Say Y here if you use SENSORS_K2HH.
+	  This option enables accelerometer sensors using
+	  STMicroelectronic K2HH device driver.
+
+config SENSORS_SX9500
+	depends on I2C
+	tristate "SX9500 driver"
+	default n
+	help
+	  Say Y here if you use sx9500.
+	  This option enables grip sensors using
+	  SemTech sx9500 device driver.
+
+	  Say N here if you do not use sx9500.
+
+config SENSORS_SX9500_INIT_TOUCH_THRESHOLD
+	int "SX9500 Grip sensor threshold for init touch"
+	depends on SENSORS_SX9500
+	default "3000"
+	help
+	  This value is the standard of init touch using
+	  SemTech sx9500 device driver.
+
+config SENSORS_SX9500_NORMAL_TOUCH_THRESHOLD
+	int "SX9500 Grip sensor threshold for normal touch"
+	depends on SENSORS_SX9500
+	default "17"
+	help
+	  This value is the standard of normal touch using
+	  SemTech sx9500 device driver.
+
+config SENSOR_USE_SYMLINK
+         bool "sensors_symlink"
+         depends on I2C
+
+config SENSORS_HSCDTD008A
+	depends on I2C
+	tristate "hscd alps HSCDTD008A"
+	default n
+	help
+	  This option enables hscd alps HSCDTD008A mag driver
+
+config SENSORS_TMD27723
+	depends on I2C
+	tristate "TMD27723 driver"
+	default n
+	help
+	   This option enables proximity & light sensors using TMD27723 driver.
+
+source "drivers/sensors/optical/Kconfig"
+source "drivers/sensors/mpu6500/Kconfig"
+source "drivers/sensors/accelerometer_k2dh/Kconfig"
+source "drivers/sensors/grip_sensor/Kconfig"
+source "drivers/sensors/accelerometer/Kconfig"
+source "drivers/sensors/accelerometer_bma250/Kconfig"
+source "drivers/sensors/geomagnetic/Kconfig"

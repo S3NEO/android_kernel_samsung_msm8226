@@ -676,7 +676,207 @@ config MSM_REMOTE_SPINLOCK_SFPB
 	bool
 config MSM_ADM3
 	bool
+	
+config MACH_MS01
+	bool "MS01 MSM8226"
+        default n
+        help
+         MSM8226 MODEL MS01 flag for differentiating it with other models
+         on the same MSM8x26 chipset.
+         
+config MACH_CRATERVE
+	bool "CRATERVE MSM8226"
+        default n
+        help
+         MSM8226 MODEL CRATERVE flag for differentiating it with other models
+         on the same MSM8x26 chipset.
 
+config MACH_CRATERQ
+	bool "CRATERQ MSM8226"
+        default n
+        help
+         MSM8226 MODEL CRATERQ flag for differentiating it with other models
+         on the same MSM8x26 chipset.
+         
+config MACH_CT01
+	bool "CT01 MSM8226"
+        default n
+        help
+         MSM8226 MODEL CT01 flag for differentiating it with other models
+         on the same MSM8x26 chipset.
+
+config MACH_S3VE
+	bool "S3VE MSM8226"
+        default n
+        help
+         MSM8226 MODEL S3VE flag for differentiating it with other models
+         on the same MSM8x26 chipset.
+
+config MACH_S3VECTC
+	bool "S3VECTC MSM8226"
+        default n
+        help
+         MSM8226 MODEL MACH_S3VECTC flag for differentiating it with other models
+         on the same MSM8x26 chipset.         
+
+config MACH_MILLET3G_EUR
+	bool "MILLET 3G EUR TAB"
+        default n
+        help
+         MSM8226 MODEL MILLET 3G EUR TAB Specific changes for differentiating
+         it with the other models on the same MSM8x26 chipset.
+
+config MACH_MS01_LTE
+	bool "MS01 MSM8926"
+        default n
+        help
+         MSM8926 MODEL MS01 flag for differentiating it with other models
+         on the same MSM8926 chipset.
+
+config MACH_MS01_CHN_SGLTE
+	bool "MS01 MSM8926"
+        default n
+        help
+         MSM8926 MODEL MS01 flag for differentiating it with other models
+         on the same MSM8926 chipset.
+
+config MACH_HLITE_CHN_SGLTE
+	bool "HLITE MSM8928"
+        default n
+        help
+         MSM8926 MODEL HLITE named FRESCO-NEW flag for differentiating it with other models
+         on the same MSM8926 chipset.
+
+config MACH_HLITE_CHN_SGLTE_CU
+	bool "HLITE MSM8928"
+        default n
+        help
+         MSM8926 MODEL HLITE named FRESCO-NEW flag for differentiating it with other models
+         on the same MSM8926 chipset.
+
+config MACH_HLITE_CHN_SGLTE_CTC
+	bool "HLITE MSM8928"
+        default n
+        help
+         MSM8926 MODEL HLITE named FRESCO-NEW flag for differentiating it with other models
+         on the same MSM8926 chipset.
+
+config MACH_CS03_SGLTE
+	bool "CS03 MSM8926"
+        default n
+        help
+         MSM8926 MODEL CS03 flag for differentiating it with other models
+         on the same MSM8926 chipset.
+         
+config MACH_Q7_CHN_SGLTE
+	bool "Q7 MSM8926"
+        default n
+        help
+         MSM8926 MODEL Q7 flag for differentiating it with other models
+         on the same MSM8926 chipset.
+         
+config MACH_VICTOR_CHN_SGLTE
+	bool "VICTOR MSM8926"
+        default n
+        help
+         MSM8926 MODEL VICTOR flag for differentiating it with other models
+         on the same MSM8926 chipset.
+
+config MACH_VICTOR_CHN_SGLTE_CU
+	bool "VICTOR MSM8926"
+        default n
+        help
+         MSM8926 MODEL VICTOR flag for differentiating it with other models
+         on the same MSM8926 chipset.
+
+config MACH_MS01_EUR_3G
+        depends on MACH_MS01
+        bool "MSM8226 MS01 EUR 3G"
+        help
+          Support for the Samsung MS01 EUR 3G device
+
+config MACH_MS01_CHN_CTC
+	bool "MSM8226 MS01 CHN CTC"
+        default n
+	help
+          Support for the Samsung MS01 CTC device.
+
+config SEC_CRATERVE_PROJECT
+	default n
+	bool "Samsung CRATERVE project"
+	help
+	  Support for Samsung CRATERVE project.
+	  
+config MACH_CRATERVE_CHN_CTC
+	depends on MACH_CRATERVE
+	bool "MSM8226 CRATERVE CHN CTC"
+	select SEC_CRATERVE_PROJECT
+	help
+	  Support for the Samsung CRATERVE device.
+
+config MACH_CRATERQ_CHN_OPEN
+        depends on MACH_CRATERQ
+        bool "MSM8226 CRATERQ CHN OPEN"
+        help
+          Support for the Samsung CRATERQ CHN device
+
+config MACH_CT01_CHN_CU
+	depends on MACH_CT01
+	bool "MSM8226 CT01 CHN CU"
+	help
+	  Support for the Samsung CT01 device.
+		 
+config MACH_S3VE_CHN_OPEN
+	depends on MACH_S3VE
+	bool "MSM8226 S3VE CHN OPEN"
+	help
+	  Support for the Samsung S3VE device.
+ 
+config MACH_S3VE_CHN_CMCC
+	depends on MACH_S3VE
+	bool "MSM8226 S3VE CHN CMCC"
+	help
+	  Support for the Samsung S3VE device.
+
+config MACH_S3VE_CHN_CTC
+	depends on MACH_S3VECTC
+	bool "MSM8226 S3VE CHN CTC"
+	help
+	  Support for the Samsung S3VE device.
+
+config MACH_S3NEO_LTE
+	bool "S3NEO MSM8926"
+        default n
+        help
+         MSM8926 MODEL S3NEO flag for differentiating it with other models
+         on the same MSM8926 chipset.
+
+config MACH_MS01_LTE_KOR
+	bool "MS01 MSM8926 KOR models"
+        default n
+        help
+         MSM8926 MODEL MS01 KOR flag representing MS01 3 model of Korea.
+         
+config MACH_MS01_LTE_SKT
+	bool "MS01 MSM8926 SKT"
+        default n
+        help
+         MSM8926 MODEL MS01 SKT flag for differentiating it with other models
+         on the same MSM8926 chipset.
+
+config MACH_MS01_LTE_LGT
+	bool "MS01 MSM8926"
+        default n
+        help
+         MSM8926 MODEL MS01 LGT flag for differentiating it with other models
+         on the same MSM8926 chipset.
+
+config MACH_MS01_LTE_KTT
+	bool "MS01 MSM8926"
+        default n
+        help
+         MSM8926 MODEL MS01 KTT flag for differentiating it with other models
+         on the same MSM8926 chipset.                  
 menu "MSM Board Selection"
 
 config MACH_HALIBUT
@@ -3027,6 +3227,17 @@ config MSM_CPU_PWRCTL
 	  stand alone power collapse operation. Selecting this option
 	  ensures that they are always off.
 
+config SEC_THERMISTOR
+	bool "Use external thermistor near AP for checking temprature"
+	default n
+	help
+	Use thermistor driver for checking temperature near AP chip.
+
+config SEC_SSR_DEBUG_LEVEL_CHK
+	bool "SSR DEBUG LEVEL check"
+	help
+	  To check the level of debug for SSR.
+	
 config MSM_UARTDM_Core_v14
 	bool "Use MSM BLSP based HSUART Core v1.4"
 	depends on SERIAL_MSM_HS
@@ -3080,4 +3291,56 @@ config KRAIT_REGULATOR
 	 line from the PMIC. This supply line is powered by multiple
 	 regulators running in ganged mode inside the PMIC. Enable
 	 this option to support such configurations.
+
+config I2C_ACTUATOR
+	bool "support autofocus on camera without using cci"
+	depends on MSMB_CAMERA
+	help
+		actuator for camera.
+
+config RTC_AUTO_PWRON
+        bool "RTC Auto Power on PM8x26 PMICs"
+        depends on ARCH_MSM8226
+        default n
+        help
+          Support for the auto power on alarm on the PM8X26 PMIC.
+          Say Y if you want to enable this feature.
+
+config RTC_AUTO_PWRON_PARAM
+        bool "RTC Auto Power on with param PM8x26 PMICs"
+        depends on RTC_AUTO_PWRON
+        default n
+        help
+          This option is used to prevent invalid RTC alarm power on.
+          Say Y if you want to enable this feature.
+
+config CMCC_MTBF_CHG_BLOCK
+        bool "charging block during CMCC MTBF test"
+        depends on ARCH_MSM8226
+        default n
+        help
+          Support for blocking charging during CMCC MTBF test.
+          Say Y if you want to enable this feature.
+
+config NOT_USE_EXT_OVP
+        bool "Not use external ovp PM8x26 PMICs"
+        depends on ARCH_MSM8226
+        default n
+        help
+          Support for external ovp the PM8X26 PMIC.
+          Say Y if you want to enable this feature.
+ 
+config MACH_MS01_CHN_CMCC_3G
+       bool "MS01 CMCC 8x26"
+	   default n
+        help
+         MSM8626 MODEL MS01 CMCC Specific changes for differentiating
+         it with the other models on the same MSM8x26 chipset.
+
+config MACH_MS01_CHN_CU_3G
+       bool "MS01 CU 8x26"
+	   default n
+        help
+         MSM8626 MODEL MS01 CMCC Specific changes for differentiating
+         it with the other models on the same MSM8x26 chipset.
 endif

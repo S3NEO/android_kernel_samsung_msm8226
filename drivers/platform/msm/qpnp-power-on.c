@@ -26,6 +26,9 @@
 
 /* Common PNP defines */
 #define QPNP_PON_REVISION2(base)		(base + 0x01)
+#ifdef CONFIG_SEC_DEBUG
+#include <mach/sec_debug.h>
+#endif
 
 /* PON common register addresses */
 #define QPNP_PON_RT_STS(base)			(base + 0x10)
@@ -115,6 +118,7 @@ struct qpnp_pon {
 	struct input_dev *pon_input;
 	struct qpnp_pon_config *pon_cfg;
 	int num_pon_config;
+	int powerkey_state;
 	u16 base;
 	struct delayed_work bark_work;
 };
@@ -359,6 +363,14 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 					(pon_rt_sts & pon_rt_bit));
 	input_sync(pon->pon_input);
 
+	if((cfg->key_code == 116) && (pon_rt_sts & pon_rt_bit)){
+		pon->powerkey_state = 1;
+	}else if((cfg->key_code == 116) && !(pon_rt_sts & pon_rt_bit)){
+		pon->powerkey_state = 0;
+	}
+#ifdef CONFIG_SEC_DEBUG
+	sec_debug_check_crash_key(cfg->key_code, pon->powerkey_state);
+#endif
 	return 0;
 }
 
@@ -980,6 +992,28 @@ free_input_dev:
 	return rc;
 }
 
+
+static ssize_t  sysfs_powerkey_onoff_show(struct device *dev,
+                struct device_attribute *attr, char *buf)
+
+{
+	struct qpnp_pon *pon = dev_get_drvdata(dev);
+        printk(KERN_INFO "inside sysfs_powerkey_onoff_show\n");
+        if (pon->powerkey_state == 1) {
+                printk(KERN_INFO "powerkey is pressed\n");
+                return snprintf(buf, 5, "%d\n", pon->powerkey_state);
+        }
+        if (pon->powerkey_state == 0) {
+                printk(KERN_INFO "powerkey is released\n");
+                return snprintf(buf, 5, "%d\n", pon->powerkey_state);
+        }
+
+        return 0;
+}
+
+static DEVICE_ATTR(sec_powerkey_pressed, 0664 , sysfs_powerkey_onoff_show,
+        NULL);
+
 static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 {
 	struct qpnp_pon *pon;
@@ -988,6 +1022,7 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 	u32 delay = 0, s3_debounce = 0;
 	int rc, sys_reset, index;
 	u8 pon_sts = 0;
+	struct device *sec_powerkey;
 
 	pon = devm_kzalloc(&spmi->dev, sizeof(struct qpnp_pon),
 							GFP_KERNEL);
@@ -1091,6 +1126,17 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 	dev_set_drvdata(&spmi->dev, pon);
 
 	INIT_DELAYED_WORK(&pon->bark_work, bark_work_func);
+
+	sec_powerkey = device_create(sec_class, NULL, 0, NULL,
+        "sec_powerkey");
+         if (IS_ERR(sec_powerkey))
+                pr_err("Failed to create device(sec_powerkey)!\n");
+         rc = device_create_file(sec_powerkey, &dev_attr_sec_powerkey_pressed);
+         if (rc) {
+                pr_err("Failed to create device file in sysfs entries(%s)!\n",
+                dev_attr_sec_powerkey_pressed.attr.name);
+        }
+        dev_set_drvdata(sec_powerkey, pon);
 
 	/* register the PON configurations */
 	rc = qpnp_pon_config_init(pon);

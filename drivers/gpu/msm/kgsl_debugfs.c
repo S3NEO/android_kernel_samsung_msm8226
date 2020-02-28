@@ -337,8 +337,10 @@ kgsl_process_init_debugfs(struct kgsl_process_private *private)
 
 	private->debug_root = debugfs_create_dir(name, proc_d_debugfs);
 
-	if (!private->debug_root)
+	if (!private->debug_root) {
+		printk("[DEBUG_KGSL] %s:%d\n", __func__, __LINE__);
 		return -EINVAL;
+	}
 
 	/*
 	 * debugfs_create_dir() and debugfs_create_file() both
@@ -354,10 +356,13 @@ kgsl_process_init_debugfs(struct kgsl_process_private *private)
 			    &process_mem_fops);
 
 	if (IS_ERR(dentry)) {
+		printk("[DEBUG_KGSL] %s:%d\n", __func__, __LINE__);
 		ret = PTR_ERR(dentry);
 
-		if (ret == -ENODEV)
+		if (ret == -ENODEV) {
+			printk("[DEBUG_KGSL] %s:%d\n", __func__, __LINE__);
 			ret = 0;
+		}
 	}
 
 	return ret;

@@ -55,6 +55,7 @@
 #include "mdss_mdp.h"
 #include "mdss_panel.h"
 #include "mdss_debug.h"
+#include "dlog.h"
 
 struct mdss_data_type *mdss_res;
 
@@ -193,7 +194,7 @@ static irqreturn_t mdss_irq_handler(int irq, void *ptr)
 		return IRQ_NONE;
 
 	mdata->irq_buzy = true;
-
+	__DLOG__(intr);
 	if (intr & MDSS_INTR_MDP) {
 		spin_lock(&mdp_lock);
 		mdss_irq_dispatch(MDSS_HW_MDP, irq, ptr);
@@ -357,7 +358,8 @@ static void mdss_mdp_bus_scale_unregister(struct mdss_data_type *mdata)
 	if (mdata->bus_hdl)
 		msm_bus_scale_unregister_client(mdata->bus_hdl);
 }
-
+unsigned long clk_rate_dbg;
+u64 bus_ab_quota_dbg, bus_ib_quota_dbg;
 int mdss_mdp_bus_scale_set_quota(u64 ab_quota, u64 ib_quota)
 {
 	int bus_idx;
@@ -388,7 +390,8 @@ int mdss_mdp_bus_scale_set_quota(u64 ab_quota, u64 ib_quota)
 		vect = mdp_bus_scale_table.usecase[bus_idx].vectors;
 		vect->ab = ab_quota;
 		vect->ib = ib_quota;
-
+		bus_ab_quota_dbg = ab_quota;
+		bus_ib_quota_dbg = ib_quota;
 		pr_debug("bus scale idx=%d ab=%llu ib=%llu\n", bus_idx,
 				vect->ab, vect->ib);
 	}
@@ -586,6 +589,7 @@ void mdss_mdp_set_clk_rate(unsigned long rate)
 		if (IS_ERR_VALUE(clk_rate)) {
 			pr_err("unable to round rate err=%ld\n", clk_rate);
 		} else if (clk_rate != clk_get_rate(clk)) {
+			clk_rate_dbg = clk_rate;
 			if (IS_ERR_VALUE(clk_set_rate(clk, clk_rate)))
 				pr_err("clk_set_rate failed\n");
 			else
@@ -2311,5 +2315,9 @@ static int __init mdss_mdp_driver_init(void)
 	return 0;
 
 }
-
+void mdss_mdp_underrun_clk_info(void)
+{
+	pr_info(" mdp_clk = %ld, bus_ab = %llu, bus_ib = %llu\n",
+		clk_rate_dbg, bus_ab_quota_dbg, bus_ib_quota_dbg);
+}
 module_init(mdss_mdp_driver_init);
