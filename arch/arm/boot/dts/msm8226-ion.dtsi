@@ -60,7 +60,7 @@
 			compatible = "qcom,msm-ion-reserve";
 			reg = <23>;
 			qcom,heap-align = <0x1000>;
-			qcom,memory-fixed = <0x0dc00000 0x1900000>;
+			qcom,memory-fixed = <0x0dc00000 0x1D00000>; /* increase PIL_1 size 0x0dc00000 0x1900000 : refer SR #01311332 */
 		};
 
 	};
