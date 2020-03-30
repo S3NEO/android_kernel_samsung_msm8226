@@ -14,7 +14,7 @@
 #define ISP_META_CHANNEL_BIT  0x80000
 #define ISP_STATS_STREAM_BIT  0x80000000
 
-#if !defined(CONFIG_MACH_S3VE3G_EUR)
+#if !defined(CONFIG_MACH_S3VE3G_EUR) && !defined(CONFIG_MACH_MS01_EUR_3G) && !defined(CONFIG_MACH_MS01_EUR_LTE)
 #define MSM_VFE_REG_CFG_FRAME_ID_NOT_MATCH_ERROR	0xCACFC
 #endif
 enum ISP_START_PIXEL_PATTERN {
@@ -249,7 +249,7 @@ struct msm_vfe_cfg_cmd2 {
 	uint16_t num_cfg;
 	uint16_t cmd_len;
 	void __user *cfg_data;
-#if !defined(CONFIG_MACH_S3VE3G_EUR)
+#if !defined(CONFIG_MACH_S3VE3G_EUR) && !defined(CONFIG_MACH_MS01_EUR_3G) && !defined(CONFIG_MACH_MS01_EUR_LTE)
 	uint32_t frame_id;
 #endif
 	void __user *cfg_cmd;

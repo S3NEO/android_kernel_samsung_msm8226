@@ -703,14 +703,14 @@ int msm_isp_proc_cmd(struct vfe_device *vfe_dev, void *arg)
 		goto copy_cmd_failed;
 	}
 
-#if !defined(CONFIG_MACH_S3VE3G_EUR)
+#if !defined(CONFIG_MACH_S3VE3G_EUR) && !defined(CONFIG_MACH_MS01_EUR_3G) && !defined(CONFIG_MACH_MS01_EUR_LTE)
 	if( (vfe_dev->frame_id == proc_cmd->frame_id && vfe_dev->eof_event_occur != 1)
 		|| proc_cmd->frame_id == 0) {
 #endif
 	for (i = 0; i < proc_cmd->num_cfg; i++)
 		msm_isp_send_hw_cmd(vfe_dev, &reg_cfg_cmd[i],
 			cfg_data, proc_cmd->cmd_len);
-#if !defined(CONFIG_MACH_S3VE3G_EUR)
+#if !defined(CONFIG_MACH_S3VE3G_EUR) && !defined(CONFIG_MACH_MS01_EUR_3G) && !defined(CONFIG_MACH_MS01_EUR_LTE)
 	}
 	else{
 		rc = MSM_VFE_REG_CFG_FRAME_ID_NOT_MATCH_ERROR;
