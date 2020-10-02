@@ -1163,7 +1163,7 @@ void board_battery_init(struct platform_device *pdev, struct sec_battery_info *b
 
 #if defined(CONFIG_MACH_MATISSELTE_ATT) || defined(CONFIG_MACH_MATISSELTE_VZW) \
 || defined(CONFIG_MACH_MILLETLTE_VZW) || defined(CONFIG_MACH_MATISSELTE_USC) || defined(CONFIG_MACH_MILLETLTE_ATT) || defined(CONFIG_MACH_MILLETLTE_CAN) || defined(CONFIG_MACH_MILLETLTE_TMO)
-  battery->pdata->fuelgauge_name = "sec-fuelgauge";
+  battery->pdata->fuelgauge_name = "bms";
 #endif
 #if defined(CONFIG_MACH_MATISSELTE_ATT) || defined(CONFIG_MACH_MATISSELTE_VZW) || defined(CONFIG_MACH_MATISSELTE_USC)
 battery->pdata->thermal_source = SEC_BATTERY_THERMAL_SOURCE_FG;
